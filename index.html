@@ -1281,10 +1281,14 @@ V.trade = () => {
     why.unshift(`<b>Rating ${TRS.score} / 100</b> (50 = fair trade). The value line below is for reference only; the rating comes from the factors in the table.`); }
   const outV = sumG + dropVal, inV = sumT + actVal, mx = Math.max(outV, inV, 1);
   // the other team's verdict: same Trade Analysis rules, from their side (they give what you get, get what you give; your drop/activation are not theirs)
-  const TRO = (TRS && mode==='trade' && s.partner && !wire && !move) ? trsRate(s.partner, get, give, [], rep.s) : null;
-  const oppV = TRO ? (() => { const [, oic, olab] = trsLabel(TRO.score), oc = TRO.score >= 53 ? 'var(--green,#1d6b4a)' : TRO.score <= 46 ? 'var(--red)' : 'var(--navy)';
-    return `<div title="What ${esc(tc(s.partner))} would see entering this trade as their own team on the Trade Analysis page" style="display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:10px;background:rgba(255,255,255,.85);border:2px solid ${oc}"><span class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;line-height:1.15">${esc(tc(s.partner))}${/s$/i.test(tc(s.partner))?'’':'’s'}<br>verdict</span><span class="osw" style="font-size:17px;color:${oc}">${oic} ${olab}</span><span class="osw" style="font-size:13px;padding:2px 7px;border-radius:7px;background:${oc};color:#fff">${TRO.score}</span></div>`; })() : '';
-  out += `<div class="note ${vcls||'navy'} rink" style="margin-bottom:16px;padding:16px 18px">${rinkSVG('rkv')}<div class="t">The verdict</div><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:2px 0 10px"><div class="osw" style="font-size:26px">${vic} ${verdict}</div>${oppV}</div><p class="muted" style="font-size:12px;margin:-4px 0 8px">Based on current-season grades (this season only).${TRO ? ` The box beside the verdict is ${esc(tc(s.partner))}${/s$/i.test(tc(s.partner))?'’':'’s'} verdict for the same trade, using the same Trade Analysis rules from their side (your drop and activation are not part of their side).` : ''}</p>${TRS ? trsScaleHTML(TRS, me, true) : ''}
+  const plainV = !!state.__sfp;  // Safe page re-uses this view for the partner card: keep the original look there
+  const TRO = (!plainV && TRS && mode==='trade' && s.partner && !wire && !move) ? trsRate(s.partner, get, give, [], rep.s) : null;
+  const poss = n => `${esc(n)}${/s$/i.test(n)?'’':'’s'}`;
+  const vbox = (who, R, tip) => { const [, bic, blab] = trsLabel(R.score), bc = R.score >= 53 ? 'var(--green,#1d6b4a)' : R.score <= 46 ? 'var(--red)' : 'var(--navy)';
+    return `<div title="${tip}" style="display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:10px;background:rgba(255,255,255,.85);border:2px solid ${bc}"><span class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;line-height:1.15">${poss(who)}<br>verdict</span><span class="osw" style="font-size:17px;color:${bc}">${bic} ${blab}</span><span class="osw" style="font-size:13px;padding:2px 7px;border-radius:7px;background:${bc};color:#fff">${R.score}</span></div>`; };
+  const meV = (!plainV && TRS) ? vbox(me, TRS, `Your verdict as ${esc(me)}`) : `<div class="osw" style="font-size:26px">${vic} ${verdict}</div>`;
+  const oppV = TRO ? vbox(tc(s.partner), TRO, `What ${esc(tc(s.partner))} would see entering this trade as their own team on the Trade Analysis page`) : '';
+  out += `<div class="note ${vcls||'navy'} rink" style="margin-bottom:16px;padding:16px 18px">${rinkSVG('rkv')}<div class="t">The verdict</div><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:2px 0 10px">${meV}${oppV}</div><p class="muted" style="font-size:12px;margin:-4px 0 8px">Based on current-season grades (this season only).${TRO ? ` ${poss(tc(s.partner))} verdict is the same trade seen from their side, using the same Trade Analysis rules (your drop and activation are not part of their side).` : ''}</p>${TRS ? trsScaleHTML(TRS, me, true) : ''}
     ${TRS ? '' : `<div class="cmp" style="max-width:640px"><div class="a"><span style="font-weight:700;min-width:44px;text-align:right">${outV.toFixed(1)}</span><i style="width:${outV/mx*100}%;background:var(--red)"></i></div><div class="lbl">VALUE</div><div class="b"><i style="width:${inV/mx*100}%;background:var(--blue)"></i><span style="font-weight:700">${inV.toFixed(1)}</span></div></div>
     <ul style="margin:10px 0 0;padding-left:18px">${why.map(x=>`<li>${x}</li>`).join('')}</ul>`}</div>`;
   // value breakdown, production tables and impact card are not shown on Trade Analysis
@@ -1320,8 +1324,8 @@ V.trade.after = () => {
 function sfPartnerVerdict(mode, s, give, get){ // the other team's verdict, as the Trade Analysis page would show it
   if (mode!=='trade' || !s.team || !s.partner || ['WIRE','MOVE'].includes(s.partner) || !give.length || !get.length) return '';
   const keepS = state.tr, keepM = state.trMode; let html = '';
-  try { state.tr = Object.assign(JSON.parse(JSON.stringify(keepS||{})), {team: s.partner, partner: s.team, give: s.get.slice(), get: s.give.slice(), drop: [], act: []}); state.trMode = 'trade'; html = V.trade(); }
-  catch(e) { html = ''; } finally { state.tr = keepS; state.trMode = keepM; }
+  try { state.tr = Object.assign(JSON.parse(JSON.stringify(keepS||{})), {team: s.partner, partner: s.team, give: s.get.slice(), get: s.give.slice(), drop: [], act: []}); state.trMode = 'trade'; state.__sfp = true; html = V.trade(); }
+  catch(e) { html = ''; } finally { state.tr = keepS; state.trMode = keepM; state.__sfp = false; }
   const d = document.createElement('div'); d.innerHTML = html;
   const v = [...d.querySelectorAll('.note')].find(n => /the verdict/i.test((n.querySelector('.t')||{}).textContent||''));
   if (!v) return '';
