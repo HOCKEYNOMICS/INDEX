@@ -246,6 +246,7 @@ table.t{border-collapse:collapse;width:100%;font-size:13px;background:#fff}
 .pinfo{display:grid;grid-template-columns:140px 1fr;gap:6px 12px;margin:0;font-size:13px}.pinfo dt{color:#6B7A8D;font-family:Oswald;letter-spacing:.06em;font-size:12px;text-transform:uppercase;padding-top:2px}.pinfo dd{margin:0;font-family:Inter,system-ui,sans-serif;font-size:14px;font-weight:700;color:var(--navy)}.pinfo dd .muted{font-weight:400}
 .pinfo .big{font-family:Oswald;font-size:20px}
 @media(max-width:520px){.pinfo{grid-template-columns:1fr}.pinfo dt{padding-top:6px}}
+.fewgp{color:#D4A017;font-size:.85em;margin-left:2px;vertical-align:1px;text-shadow:0 0 1px rgba(0,0,0,.25)}
 .navrow.vaultrow{display:none}body.vault .navrow.vaultrow{display:flex}body.vault .navrow:not(.vaultrow){display:none}
 .nav .grp.vaultg{background:#1f6f6b}
 .vtm{display:inline-block;min-width:34px;text-align:center;font-family:Oswald;font-size:11px;letter-spacing:.05em;background:var(--navy);color:#fff;border-radius:4px;padding:1px 4px;margin-right:2px}
@@ -3081,7 +3082,7 @@ const rulesPage = () => {
 5. Total & curve:              Σz over the league categories;  GRADE = 50 + 10 × (Σz − mean Σz) ÷ SD Σz, kept between 0 and 100`)}
    ${li(['Ranked by grade; ties broken by season points. Position ranks re-rank each position (C, LW, RW, D); a multi-position player is ranked in every position he is eligible for.',
      'League average = 50 and each standard deviation = 10 points, so the grade is stable from week to week instead of being stretched between the best and worst player.',
-     '<b>†</b> marks players with fewer than 5 games (grade unchanged, small sample).',
+     '<b class="fewgp">★</b> marks players with fewer than 5 games (grade unchanged, small sample).',
      'Grade bands: <b style="color:var(--red)">Elite 70+</b> · <b style="color:var(--navy)">Impact 60–70</b> · <b style="color:var(--blue)">Rosterable 50–60</b> · <b style="color:var(--steel)">Depth under 50</b>.',
      'Deployment (lines, power play, penalty kill) is shown on each player for information; it is not part of the grade.'])}`) +
 
@@ -3110,7 +3111,7 @@ const rulesPage = () => {
 4. Category z-scores:         z = (value − league mean) ÷ league SD;  flipped (× −1) for GAA, L and OTL
 5. Total & curve:             Σz over the league's goalie categories — ${(GL && GL.graded ? GL.graded : ['W','SV','SO','L','OTL','GAA']).join(', ')}
                               GRADE = 50 + 10 × (Σz − mean) ÷ SD, kept between 0 and 100;  ties go to more wins`)}
-   ${li(['<b>†</b> marks goalies with fewer than 5 games: their per-game rates rest on very few starts.', 'The Schedule Opportunity Factor is identical to the skaters\' one.'])}`) +
+   ${li(['<b class="fewgp">★</b> marks goalies with fewer than 5 games: their per-game rates rest on very few starts.', 'The Schedule Opportunity Factor is identical to the skaters\' one.'])}`) +
 
   sec('groles', 'Goalie roles & role trends', `
    ${F('share = goalie games played ÷ his team\'s real games played this season')}
@@ -3251,7 +3252,7 @@ function rankRows(){
   const s = state.rk, L = filtered(), pages = Math.max(1, Math.ceil(L.length/s.per)); s.page = Math.min(s.page, pages-1);
   const sl = L.slice(s.page*s.per, (s.page+1)*s.per);
   const body = sl.map(p=>{ const r = s.view==='position' ? prk(p, s.pos) : p.rank;
-    return `<tr class="click" data-pl="${p.id}"><td>${puck(r)}</td><td class="nm stk">${esc(p.name)}${p.GP<5?' <span title="Fewer than 5 games played" class="muted">†</span>':''}${s.view==='position'?` <span class="muted">(#${p.rank})</span>`:''}</td><td>${p.team}</td><td>${posCell(p)}</td><td style="white-space:nowrap">${depTags(p)}</td><td>${p.GP}</td><td>${p.G}</td><td>${p.A}</td><td><b>${p.PTS}</b></td><td>${sgn(p.PM)}</td><td>${p.PIM}</td><td>${p.SOG}</td><td>${p.PPG}</td><td>${p.PPA}</td><td>${p.HIT}</td><td>${p.BLK}</td><td class="${p.sof>1.0005?'pos':p.sof<0.9995?'neg':''}">${(p.sof||1).toFixed(3)}</td><td style="white-space:nowrap">${spark(p.hist, 64, 18, p.trend)}</td><td>${gradeBar(p.grade)}</td></tr>`; }).join('');
+    return `<tr class="click" data-pl="${p.id}"><td>${puck(r)}</td><td class="nm stk">${esc(p.name)}${p.GP<5?' <span class="fewgp" title="Fewer than 5 games played">★</span>':''}${s.view==='position'?` <span class="muted">(#${p.rank})</span>`:''}</td><td>${p.team}</td><td>${posCell(p)}</td><td style="white-space:nowrap">${depTags(p)}</td><td>${p.GP}</td><td>${p.G}</td><td>${p.A}</td><td><b>${p.PTS}</b></td><td>${sgn(p.PM)}</td><td>${p.PIM}</td><td>${p.SOG}</td><td>${p.PPG}</td><td>${p.PPA}</td><td>${p.HIT}</td><td>${p.BLK}</td><td class="${p.sof>1.0005?'pos':p.sof<0.9995?'neg':''}">${(p.sof||1).toFixed(3)}</td><td style="white-space:nowrap">${spark(p.hist, 64, 18, p.trend)}</td><td>${gradeBar(p.grade)}</td></tr>`; }).join('');
   $('#rkbody').innerHTML = body || `<tr><td colspan="20" style="padding:24px">No players match these filters.</td></tr>`;
   $('#rkcount').textContent = `${L.length} player${L.length===1?'':'s'} · page ${s.page+1} of ${pages}`;
   $('#rkprev').disabled = s.page===0; $('#rknext').disabled = s.page>=pages-1;
@@ -3278,7 +3279,7 @@ V.rankings = () => {
   </div>
   <div class="tw" style="max-height:70vh"><table class="t"><thead><tr id="rkhead">${RCOLS.map(([k,l,a])=>`<th class="s ${a||''} ${k==='name'?'stk':''}" data-k="${k}">${l}</th>`).join('')}</tr></thead><tbody id="rkbody"></tbody></table></div>
   <div class="pager"><span class="muted" id="rkcount"></span><div style="display:flex;gap:6px;align-items:center"><select id="rkper">${[25,50,100,250].map(n=>`<option ${s.per===n?'selected':''}>${n}</option>`).join('')}</select><button class="btn ghost" id="rkprev">‹ Prev</button><button class="btn ghost" id="rknext">Next ›</button></div></div>
-  <p class="muted">SOF ADJ = Schedule Opportunity Factor (team light-night index, 1.000 = league average) · Stats are season totals; grades use per-game rates × 82 games × SOF × PFF · † fewer than 5 games played · TREND = season grade over the last 5 weeks (a darker, thicker line marks Rising: up 25% or more and at least 10 grade points, or Falling: down 25% or more and at least 10 points; only for players with at least 10 games and at least half the league average of ${PTREND.avgGP.toFixed(1)})${LINES?` · DEPLOY = NHL line (L1–L4 forwards, D1–D3 pairs), power-play and penalty-kill units, as of ${LINES.asof} (${esc(LINES.source)}).`:''}</p></div>`;
+  <p class="muted">SOF ADJ = Schedule Opportunity Factor (team light-night index, 1.000 = league average) · Stats are season totals; grades use per-game rates × 82 games × SOF × PFF · <span class="fewgp">★</span> fewer than 5 games played · TREND = season grade over the last 5 weeks (a darker, thicker line marks Rising: up 25% or more and at least 10 grade points, or Falling: down 25% or more and at least 10 points; only for players with at least 10 games and at least half the league average of ${PTREND.avgGP.toFixed(1)})${LINES?` · DEPLOY = NHL line (L1–L4 forwards, D1–D3 pairs), power-play and penalty-kill units, as of ${LINES.asof} (${esc(LINES.source)}).`:''}</p></div>`;
 };
 V.rankings.after = () => {
   rankRows();
@@ -3329,7 +3330,7 @@ function gFiltered(){
 }
 function gRows(){
   const L = gFiltered(), s = state.gk;
-  $('#gkbody').innerHTML = L.map(g => `<tr class="click" data-gl="${g.id}"><td>${puck(g.rank)}</td><td class="nm stk">${esc(g.name)}${g.GP<5?' <span class="muted" title="Fewer than 5 games played">†</span>':''}</td><td>${g.team}</td><td><span class="pill ${GROLE[g.role]}">${g.role.toUpperCase()}</span>${trendTag(g)}</td><td>${g.GP}</td><td><b>${g.W}</b></td><td>${g.L}</td><td>${g.OTL}</td><td>${g.GAA.toFixed(2)}</td><td>${g.SV}</td><td>${g.SO}</td><td class="${g.sof>1.0005?'pos':g.sof<0.9995?'neg':''}">${(g.sof||1).toFixed(3)}</td><td>${gradeBar(g.grade)}</td></tr>`).join('') || '<tr><td colspan="13" style="padding:24px">No goalies match these filters.</td></tr>';
+  $('#gkbody').innerHTML = L.map(g => `<tr class="click" data-gl="${g.id}"><td>${puck(g.rank)}</td><td class="nm stk">${esc(g.name)}${g.GP<5?' <span class="fewgp" title="Fewer than 5 games played">★</span>':''}</td><td>${g.team}</td><td><span class="pill ${GROLE[g.role]}">${g.role.toUpperCase()}</span>${trendTag(g)}</td><td>${g.GP}</td><td><b>${g.W}</b></td><td>${g.L}</td><td>${g.OTL}</td><td>${g.GAA.toFixed(2)}</td><td>${g.SV}</td><td>${g.SO}</td><td class="${g.sof>1.0005?'pos':g.sof<0.9995?'neg':''}">${(g.sof||1).toFixed(3)}</td><td>${gradeBar(g.grade)}</td></tr>`).join('') || '<tr><td colspan="13" style="padding:24px">No goalies match these filters.</td></tr>';
   $('#gkcount').textContent = `${L.length} goalie${L.length===1?'':'s'}`;
   document.querySelectorAll('#gkhead th').forEach(th=>th.classList.toggle('sorted', th.dataset.k===s.sort));
 }
@@ -3344,7 +3345,7 @@ V.goalies = () => {
    <div class="ctrls"><label class="lb">NHL team <select id="gkteam"><option value="ALL">All teams</option>${NHL.map(t=>`<option ${s.team===t?'selected':''}>${t}</option>`).join('')}</select></label>
    <label class="lb">Min games <input type="number" id="gkgp" min="0" max="84" value="${s.mingp}" style="width:70px"></label><span class="muted" id="gkcount"></span></div>
   <div class="tw" style="max-height:70vh"><table class="t"><thead><tr id="gkhead">${GCOLS.map(([k,l,a])=>`<th class="s ${a||''} ${k==='name'?'stk':''}" data-k="${k}">${l}</th>`).join('')}</tr></thead><tbody id="gkbody"></tbody></table></div>
-  <p class="muted">GAA = goals-against average · SOF ADJ = Schedule Opportunity Factor (team light-night index, 1.000 = league average) · † fewer than 5 games: these grades rest on very few starts. Tap a goalie for the full profile.</p></div>
+  <p class="muted">GAA = goals-against average · SOF ADJ = Schedule Opportunity Factor (team light-night index, 1.000 = league average) · <span class="fewgp">★</span> fewer than 5 games: these grades rest on very few starts. Tap a goalie for the full profile.</p></div>
   <div class="grid g2"><div class="card"><h2>How the P.A.M goalie grade works</h2>
    <div class="note" style="margin-bottom:8px"><b>Graded categories (the league's, from the Key page):</b> ${(GL.graded || ['W','SV','SO','L','OTL','GAA']).map(c => GCATN[c] || c).join(', ')}. GAA, losses and OT losses count lower as better. Other goalie stats are not used.</div>
    <ol style="margin:0;padding-left:20px;font-size:13.5px"><li>Wins, saves and shutouts (and losses / OT losses if the league uses them) are converted to per-game rates and projected over a standard <b>82 games</b>; GAA is a rate and stays as is.</li>
@@ -3720,7 +3721,7 @@ function vStandings(){
 state.vs = {q:'', pos:'ALL', team:'ALL', mingp:0, sort:'rank', dir:1, page:0, per:50};
 state.vg = {q:'', team:'ALL', mingp:0, sort:'rank', dir:1};
 state.vstand = 'div'; state.vlead = 'sk'; state.vteam = null; state.vday = null;
-const vsmall = o => o.GP < 5 ? ' <span class="muted" title="Fewer than 5 games played">†</span>' : '';
+const vsmall = o => o.GP < 5 ? ' <span class="fewgp" title="Fewer than 5 games played">★</span>' : '';
 const vbadge = t => `<span class="vtm" title="${esc(VTN[t] || t)}">${t}</span>`;
 const vasof = () => `Stats file of Week ${VLAST} · NHL results through ${esc((DATA.nhl && DATA.nhl.meta && (DATA.nhl.meta.resultsThrough || DATA.nhl.meta.asof)) || '—')}`;
 
@@ -3780,7 +3781,7 @@ V['vault-sk'] = () => { const s = state.vs, L = vSkaters(VLAST);
    <label class="lb">Min games <input type="number" id="vsgp" min="0" max="84" value="${s.mingp}" style="width:70px"></label><button class="btn ghost" id="vsreset">Reset</button></div>
    <div class="tw" style="max-height:70vh"><table class="t"><thead><tr id="vshead">${VSCOLS.map(([k, l, a]) => `<th class="s ${a || ''} ${k === 'name' ? 'stk' : ''}" data-k="${k}">${l}</th>`).join('')}</tr></thead><tbody id="vsbody"></tbody></table></div>
    <div class="pager"><span class="muted" id="vscount"></span><div style="display:flex;gap:6px;align-items:center"><select id="vsper">${[25, 50, 100, 250].map(n => `<option ${s.per === n ? 'selected' : ''}>${n}</option>`).join('')}</select><button class="btn ghost" id="vsprev">‹ Prev</button><button class="btn ghost" id="vsnext">Next ›</button></div></div>
-   <p class="muted">${vasof()} · Stats are season totals; grades use per-game rates × 82 games · † fewer than 5 games played · TREND = Vault grade over the last 5 weeks of stats files.</p></div>`; };
+   <p class="muted">${vasof()} · Stats are season totals; grades use per-game rates × 82 games · <span class="fewgp">★</span> fewer than 5 games played · TREND = Vault grade over the last 5 weeks of stats files.</p></div>`; };
 V['vault-sk'].after = () => { const s = state.vs, upd = () => { s.page = 0; vsRows(); }; vsRows();
   $('#vsq').oninput = e => { s.q = e.target.value; upd(); }; $('#vsteam').onchange = e => { s.team = e.target.value; upd(); }; $('#vsgp').oninput = e => { s.mingp = +e.target.value || 0; upd(); };
   $('#vsper').onchange = e => { s.per = +e.target.value; upd(); }; $('#vsprev').onclick = () => { s.page--; vsRows(); }; $('#vsnext').onclick = () => { s.page++; vsRows(); };
@@ -3801,7 +3802,7 @@ V['vault-go'] = () => { const s = state.vg, L = vGoalies(VLAST);
    <label class="lb">Min games <input type="number" id="vggp" min="0" max="84" value="${s.mingp}" style="width:70px"></label></div>
    <div class="tw" style="max-height:70vh"><table class="t"><thead><tr id="vghead">${VGCOLS.map(([k, l, a]) => `<th class="s ${a || ''} ${k === 'name' ? 'stk' : ''}" data-k="${k}">${l}</th>`).join('')}</tr></thead><tbody id="vgbody"></tbody></table></div>
    <div class="pager"><span class="muted" id="vgcount"></span></div>
-   <p class="muted">${vasof()} · GAA and SV% are worked out from goals against, minutes, saves and shots against · † fewer than 5 games played.</p></div>`; };
+   <p class="muted">${vasof()} · GAA and SV% are worked out from goals against, minutes, saves and shots against · <span class="fewgp">★</span> fewer than 5 games played.</p></div>`; };
 V['vault-go'].after = () => { const s = state.vg; if (!vGoalies(VLAST)) return; vgRows();
   $('#vgq').oninput = e => { s.q = e.target.value; vgRows(); }; $('#vgteam').onchange = e => { s.team = e.target.value; vgRows(); }; $('#vggp').oninput = e => { s.mingp = +e.target.value || 0; vgRows(); };
   $('#vghead').onclick = e => { const k = e.target.closest('th')?.dataset.k; if (!k) return; if (s.sort === k) s.dir *= -1; else { s.sort = k; s.dir = ['rank', 'name', 'team', 'GAA', 'GA', 'L', 'OTL'].includes(k) ? 1 : -1; } vgRows(); }; };
