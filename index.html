@@ -515,9 +515,9 @@ function discHTML(p){ const d = discOf(p), [ic, lab, col] = discStatus(d), pg = 
     <p class="muted" style="font-size:11px;margin:6px 0 0">100 = fewest penalty minutes in the league (per game). Shown for flavour only: it does not count in the P.A.M grade.</p></div>`; }
 // Availability: games played ÷ his team's real NHL games played (from DATA.nhl finals). Not part of the grade.
 let AV_TGP = null;
-function availTGP(){ if (AV_TGP) return AV_TGP; const m = {}, N = DATA.nhl;
-  ((N && N.g) || []).forEach(r => { if (r[4] == null) return; [r[2], r[3]].forEach(t => { const k = t === 'VEG' ? 'VGK' : t; m[k] = (m[k] || 0) + 1; }); });
-  const v = Object.values(m); m._avg = v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0; return AV_TGP = m; }
+function availTGP(){ if (AV_TGP && AV_TGP.w === W.week) return AV_TGP; const m = {};   // team games = most games played by anyone on the team in the latest stats file
+  players.concat(goalies || []).forEach(p => { if (p.team && p.team !== 'FA') m[p.team] = Math.max(m[p.team] || 0, p.GP || 0); });
+  const v = Object.values(m); m._avg = v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0; m.w = W.week; return AV_TGP = m; }
 const AVAIL_LV = [[1,'🦾','Iron man','#1F8A4C'],[0.95,'💪','Durable','#3C9A5F'],[0.9,'✅','Reliable','#2E7DBA'],[0.8,'🩹','Banged up','#C99A1E'],[0.65,'🔁','In and out','#D9821E'],[0.5,'🪑','Part-timer','#D9631E'],[0,'👻','Cameo','#C8102E']];
 function availStatus(r){ const l = AVAIL_LV.find(x => r >= x[0] - 1e-9); return [l[1], l[2], l[3]]; }
 const AVAIL_SK_NOTE = '🦾 Iron man 100% · 💪 Durable 95–99% · ✅ Reliable 90–94% · 🩹 Banged up 80–89% · 🔁 In and out 65–79% · 🪑 Part-timer 50–64% · 👻 Cameo under 50%.';
@@ -528,7 +528,7 @@ function availHTML(p, opt){ opt = opt || {}; const T = availTGP(), tk = p.team =
   return `<div class="pbox"><div class="pbh"><h3>Availability</h3><span class="pill" style="background:${col};color:#fff">${ic} ${lab}</span></div>
     <div class="cb"><span style="text-align:left">${opt.g ? 'Share of team games' : 'Games available'}</span><i><b style="width:${pct}%;background:var(--blue)"></b></i><span>${pct.toFixed(0)}%</span></div>
     <div style="display:flex;gap:18px;flex-wrap:wrap;font-size:12.5px;margin-top:4px"><span>Played <b>${p.GP}</b> of <b>${tg}</b> ${opt.teamGP != null ? 'games' : esc(tk) + ' games'}</span><span>${opt.g ? 'Did not play' : 'Missed'} <b>${miss}</b></span>${opt.teamGP != null ? '' : `<span>League avg team GP <b>${T._avg.toFixed(1)}</b></span>`}</div>
-    <p class="muted" style="font-size:11px;margin:6px 0 0">${opt.note || 'His games played ÷ his team\'s games played (NHL finals' + (DATA.nhl && DATA.nhl.meta && DATA.nhl.meta.resultsThrough ? ' through ' + DATA.nhl.meta.resultsThrough : '') + '). ' + (opt.g ? 'Games he did not play are usually nights as the backup, or injury' : 'Missed games can be injuries, healthy scratches or a call-up') + '; a traded player is measured against his current team, capped at 100%. ' + (opt.g ? 'A goalie\'s games include relief appearances. ' + AVAIL_G_NOTE : AVAIL_SK_NOTE) + ' Not part of the P.A.M grade.'}</p></div>`; }
+    <p class="muted" style="font-size:11px;margin:6px 0 0">${opt.note || 'His games played ÷ his team\'s games played (team games = the most games played by anyone on his team in the latest stats file). ' + (opt.g ? 'Games he did not play are usually nights as the backup, or injury' : 'Missed games can be injuries, healthy scratches or a call-up') + '; a traded player is measured against his current team, capped at 100%. ' + (opt.g ? 'A goalie\'s games include relief appearances. ' + AVAIL_G_NOTE : AVAIL_SK_NOTE) + ' Not part of the P.A.M grade.'}</p></div>`; }
 const CATSHORT = {PM:'+/−', HIT:'HIT', BLK:'BLK', PPP:'PPP'};
 const INSIGHT = {
  G:'Goals are the scarcest offensive currency in fantasy hockey and the most volatile category week to week. Elite finishers combine shot volume with power-play deployment, so cross-check this list with Shots on Goal and Power Play Goals before paying for a hot streak.',
@@ -569,8 +569,11 @@ const NAVROWS = [
  ['pam','', [['rankings','Skaters'],['goalies','Goalies'],['leaders','Category Leaders'],['compare','Compare Players'],['nhl','NHL Teams'],['rosters','Rosters'],['method','How P.A.M Works']]],
  ['tools','', []]
 ];
+// Hidden sections (Nov 13 2026): code kept, not shown and not updated. Remove a key to bring a section back.
+const HIDDEN = {vault:1, lab:1, nhlsched:1};
+const isHidden = r => !!(HIDDEN[r] || (HIDDEN.vault && String(r).startsWith('vault')));
 const TOOLS = [['nhlsched','🏒 NHL SCHEDULE'],['trade','⚖️ TRADE ANALYSIS'],['market','📈 PLAYER MARKET'],['records','🏆 RECORD BOOK'],['safe','🔒 SAFE'],['key','🔑 KEY']];
-$('#nav').innerHTML = NAVROWS.map(([c,l,rs]) => `<div class="navrow">${c==='wam' ? `<label class="grp wam wkpick" title="Pick a week"><select id="wksel" aria-label="Pick a week">${WEEKS.slice().reverse().map(w=>`<option value="${w}">W.A.M · Week ${w}</option>`).join('')}</select></label>` : c==='pam' ? `<span class="grp pam" id="pamlbl"></span>` : `<span class="grp tools">TOOLS</span>`}${rs.map(([r,t]) => `<a href="#${r}" data-r="${r}">${t}</a>`).join('')}${c==='tools' ? TOOLS.map(([r,t]) => `<a href="#${r}" data-r="${r}" class="tradebtn">${t}</a>`).join('') : ''}</div>`).join('');
+$('#nav').innerHTML = NAVROWS.map(([c,l,rs]) => `<div class="navrow">${c==='wam' ? `<label class="grp wam wkpick" title="Pick a week"><select id="wksel" aria-label="Pick a week">${WEEKS.slice().reverse().map(w=>`<option value="${w}">W.A.M · Week ${w}</option>`).join('')}</select></label>` : c==='pam' ? `<span class="grp pam" id="pamlbl"></span>` : `<span class="grp tools">TOOLS</span>`}${rs.map(([r,t]) => `<a href="#${r}" data-r="${r}">${t}</a>`).join('')}${c==='tools' ? TOOLS.filter(([r]) => !isHidden(r)).map(([r,t]) => `<a href="#${r}" data-r="${r}" class="tradebtn">${t}</a>`).join('') : ''}</div>`).join('');
 
 const state = {
   fmodel:'yah', mxModel:'yah', mxFocus:null, gradeSet:'week', evoSet:'season', evoFocus:null, team: T[0],
@@ -626,8 +629,8 @@ V.welcome = () => `<section class="land">${rinkSVG()}<div class="land-in">
   <div class="sub">Home of the <b>W.A.M</b> (Weekly Assessment Model): standings, forecasts, matchups and team grades. And the <b>P.A.M</b> (Player Assessment Model): a grade for all NHL players.</div>
   <span class="badge">SEASON ${W.season}</span>
   <div class="pucks">
-   <div class="pcol"><a class="puck" href="#vault"><span class="pk">🏒</span> THE STAT VAULT</a><div class="hint">Real NHL stats</div></div>
-   <div class="pcol"><a class="puck labbtn" href="#lab"><span class="pk">🏒</span> FANTASY LAB<span class="labtape">🚧 UNDER RENOVATION 🚧</span></a><div class="hint">Fantasy hockey stats · opening soon</div></div>
+   ${isHidden('vault') ? '' : `<div class="pcol"><a class="puck" href="#vault"><span class="pk">🏒</span> THE STAT VAULT</a><div class="hint">Real NHL stats</div></div>`}
+   ${isHidden('lab') ? '' : `<div class="pcol"><a class="puck labbtn" href="#lab"><span class="pk">🏒</span> FANTASY LAB<span class="labtape">🚧 UNDER RENOVATION 🚧</span></a><div class="hint">Fantasy hockey stats · opening soon</div></div>`}
    <div class="pcol"><a class="puck" href="#standings"><span class="pk">🏒</span> PRIVATE LEAGUES</a><div class="hint">Enter No More Kids Play</div></div>
   </div>
   </div><div class="hem"></div></section>`;
@@ -4189,7 +4192,7 @@ V.lab = () => `<section class="land lab">${rinkSVG()}<div class="land-in">
 
 /* ================= router & delegation ================= */
 function go(r){ if (location.hash.slice(1)===r) render(); else location.hash = r; }
-function current(){ const h = location.hash.slice(1); return !h ? 'welcome' : V[h] ? h : 'standings'; }
+function current(){ const h = location.hash.slice(1); return !h ? 'welcome' : V[h] && !isHidden(h) ? h : 'standings'; }
 function render(){
   const r = current();
   document.body.classList.toggle('landing', r==='welcome' || r==='lab');
