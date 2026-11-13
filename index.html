@@ -3716,7 +3716,7 @@ const VSC = [['G','Goals'],['A','Assists'],['SOG','Shots on Goal'],['PM','Plus /
 const VSREF = [['PTS','Points'],['PPG','Power Play Goals'],['PPA','Power Play Assists'],['SHG','Short-Handed Goals'],['SHA','Short-Handed Assists'],['GWG','Game-Winning Goals'],['PIM','Penalty Minutes (fewer = better)']];
 const VSNEG = {PIM:1};
 // goalie categories (10, every column of the goalie file) · [key, name, sign, rate?]
-const VGC = [['W','Wins',1,0],['L','Losses',-1,0],['OTL','OT Losses',-1,0],['GAA','Goals-Against Average',-1,1],['GA','Goals Against',-1,0],['SA','Shots Against (workload)',1,0],['SV','Saves',1,0],['SVP','Save Percentage',1,1],['SO','Shutouts',1,0],['MIN','Minutes (workload)',1,0]];
+const VGC = [['W','Wins',1,0],['L','Losses',-1,0],['OTL','OT Losses',-1,0],['GAA','Goals-Against Average',-1,1],['SVP','Save Percentage',1,1],['SO','Shutouts',1,0],['MIN','Minutes (workload)',1,0]];
 const vcl = x => Math.max(0, Math.min(100, x));
 const vz = (arr) => { const n = arr.length || 1, m = arr.reduce((a, b) => a + b, 0) / n, sd = Math.sqrt(arr.reduce((a, b) => a + (b - m) ** 2, 0) / n); return arr.map(v => sd ? (v - m) / sd : 0); };
 const VWK = WEEKS.filter(w => DATA.weeks[w].pam), VLAST = VWK[VWK.length - 1];
@@ -3894,7 +3894,7 @@ function vgRows(){ const s = state.vg, q = s.q.trim().toLowerCase(), L = (vGoL()
   $('#vgcount').textContent = `${L.length} goalie${L.length === 1 ? '' : 's'}`; document.querySelectorAll('#vghead th').forEach(th => th.classList.toggle('sorted', th.dataset.k === s.sort)); }
 V['vault-go'] = () => { const s = state.vg, L = vGoL();
   if (!L) return phead('🏛️ The Stat Vault · Real NHL', 'Goalies · P.A.M grade', '') + `<div class="card muted">No goalie file yet.</div>`;
-  return phead('🏛️ The Stat Vault · Real NHL', 'Goalies · P.A.M grade', `All ${L.length} NHL goalies${VPS[vmode()] ? ' of ' + VPS[vmode()] : ''} graded on all 10 categories of the goalie file, with no schedule multiplier. Tap a goalie for the full profile.`) +
+  return phead('🏛️ The Stat Vault · Real NHL', 'Goalies · P.A.M grade', `All ${L.length} NHL goalies${VPS[vmode()] ? ' of ' + VPS[vmode()] : ''} graded on 7 categories (wins, losses, OT losses, GAA, SV%, shutouts, minutes) of the goalie file, with no schedule multiplier. Tap a goalie for the full profile.`) +
   `<div class="card">${vModeSel()}<div class="ctrls"><input type="search" id="vgq" placeholder="Search a goalie…" value="${esc(s.q)}">
    <label class="lb">NHL team <select id="vgteam"><option value="ALL">All teams</option>${VTEAMS.map(t => `<option value="${t}" ${s.team === t ? 'selected' : ''}>${t} · ${esc(VTN[t])}</option>`).join('')}</select></label>
    <label class="lb">Min games <input type="number" id="vggp" min="0" max="84" value="${s.mingp}" style="width:70px"></label></div>
@@ -3961,10 +3961,11 @@ V['vault-method'] = () => phead('🏛️ The Stat Vault · Real NHL', 'How the P
    <li><b>No double counting.</b> Points (goals + assists), power-play and short-handed goals and assists, and game-winning goals are all goals or assists already counted, so they are left out of the grade. Penalty minutes are left out too: their cost already shows up in the production. All of them still appear in the season line, and in each player's <b>Performance grade breakdown</b>, which has its own P.A.M performance grade (same method, shown only there).</li>
    <li><b>The grade.</b> The 6 z-scores are added up, then put on the same curve: 50 = an average NHL skater, 60 = one standard deviation better, 70+ = elite. Kept between 0 and 100.</li></ol>
    <p class="muted">Each goal and each assist counts exactly once, so a player is graded on what he produced, not on how many columns it shows up in. Hits, blocks and +/− carry real weight next to the scoring.</p></div>
-   <div class="card"><h2>Goalies · 10 categories</h2><p>${VGC.map(([, n, sg]) => `${n} ${sg > 0 ? '▲' : '▼'}`).join(' · ')}.</p>
-   <ol style="padding-left:18px;line-height:1.6"><li><b>Counting stats per game × 82</b> (wins, losses, OT losses, goals against, shots against, saves, shutouts, minutes).</li>
+   <div class="card"><h2>Goalies · 7 graded categories</h2><p>${VGC.map(([, n, sg]) => `${n} ${sg > 0 ? '▲' : '▼'}`).join(' · ')}.</p>
+   <ol style="padding-left:18px;line-height:1.6"><li><b>Counting stats per game × 82</b> (wins, losses, OT losses, shutouts, minutes).</li>
    <li><b>Rates as they are:</b> GAA (goals against × 60 ÷ minutes) and SV% (saves ÷ shots against).</li>
-   <li><b>Direction:</b> ▲ higher is better, ▼ lower is better. Shots against and minutes reward workload.</li>
+   <li><b>Direction:</b> ▲ higher is better, ▼ lower is better. Minutes reward workload.</li>
+   <li><b>No double counting.</b> Goals against, shots against and saves are the raw pieces of GAA and SV%, so they are left out of the grade. They still appear in each goalie's season line.</li>
    <li><b>No schedule multiplier.</b> Same z-score and 50-anchored curve as skaters.</li></ol>
    <h2 style="margin-top:14px">Grade bands</h2><p>70+ Elite · 60–70 Impact · 50–60 Above average · below 50 Below average.</p>
    <h2 style="margin-top:14px">Standings</h2><p>Built from every final score: 2 points for a win, 1 for an OT or shootout loss; ties broken by points, fewer games played, regulation wins, regulation + OT wins, wins, then goal differential.</p></div></div>`;
@@ -4015,11 +4016,11 @@ function openVGoalie(id){
     lg && lg.trend ? ['Role trend', `<b class="${lg.trend==='up'?'pos':'neg'}">${lg.trend==='up'?'▲ Rising':'▼ Falling'}</b> <span style="font-size:12px">${esc(lg.trendNote)}</span>`] : null,
     ['Goalie rank', `#${g.rank} of ${L.length}`], ['Team rank', `#${g.teamRank} of ${esc(g.team)}`], ['Games played', `${g.GP}${share != null ? ` (${Math.round(share * 100)}% of team games)` : ''}` + (g.GP < 5 ? ` <span class="fewgp">★</span> <span class="muted" style="font-size:12px;font-weight:400">fewer than 5 games: small sample</span>` : '')]]);
   const cats = VGC.map(([c, n]) => `<div class="cb"><span style="text-align:left">${n}</span><i><b style="width:${g.score[c]}%;background:var(--blue)"></b></i><span>${g.score[c].toFixed(0)}</span></div>`).join('')
-    + gradeParts([['Sum of category z-scores', sgn(g.raw, 2), '10 categories, counting stats per game × 82; GAA and SV% as is; no schedule multiplier'], [`P.A.M goalie grade${g.mode === 'exp' ? ' (expected)' : ''}`, g.grade.toFixed(1), '50 + 10 × standardized total, kept 0–100', true]]);
+    + gradeParts([['Sum of category z-scores', sgn(g.raw, 2), '7 graded categories, counting stats per game × 82; GAA and SV% as is; no schedule multiplier'], [`P.A.M goalie grade${g.mode === 'exp' ? ' (expected)' : ''}`, g.grade.toFixed(1), '50 + 10 × standardized total, kept 0–100', true]]);
   const line = `<div class="tw"><table class="t"><tbody>${[['Record (W-L-OTL)', `${vr(g.W)}-${vr(g.L)}-${vr(g.OTL)}`], ['GAA', g.GAA.toFixed(2)], ['Save %', g.SVP.toFixed(3).replace(/^0/, '')], ['Goals against', vr(g.GA)], ['Shots against', vr(g.SA)], ['Saves', vr(g.SV)], ['Shutouts', g.mode === 'exp' ? g.SO.toFixed(1) : g.SO], ['Minutes', vr(g.MIN)], ['Games', g.GP]].map(([k, v]) => `<tr><td class="l">${k}</td><td><b>${v}</b></td></tr>`).join('')}</tbody></table></div>`;
   const trend = g.hist.length > 1 ? `<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">${spark(g.hist, 120, 30, g.trend)}<div style="font-size:13px">${g.hist.map(x => `W${x.w} <b>${x.g.toFixed(1)}</b>`).join(' → ')}</div></div>` : `<div class="muted" style="font-size:13px">Vault goalie grades start with the Week ${VWK.find(w => DATA.weeks[w].graw) || VLAST} goalie file: not enough weeks yet.</div>`;
   $('#md').innerHTML = cardHead(g.name, g.team === 'FA' ? '' : g.team, Math.round(g.grade), `${esc(g.team)} · GOALIE`, '', info).replace('P.A.M GRADE', 'P.A.M GRADE') + `<div class="mb ice">${vCardSw('gl', g)}
-    <div class="muted" style="font-size:12px;margin:0 0 4px">🏛️ P.A.M ${g.mode === 'exp' ? 'expected ' : past ? g.season + ' ' : ''}grade · all 10 categories · ${vasof()}</div>
+    <div class="muted" style="font-size:12px;margin:0 0 4px">🏛️ P.A.M ${g.mode === 'exp' ? 'expected ' : past ? g.season + ' ' : ''}grade · 7 graded categories · ${vasof()}</div>
     ${pbox('P.A.M grade breakdown', cats)}
     ${g.team === 'FA' ? '' : past ? availHTML({GP:g.GP, team:g.team}, {g:1, teamGP:82, note:g.season + ' full season: games played out of 82. ' + AVAIL_G_NOTE + ' Not part of the P.A.M grade.'}) : availHTML({GP:g.GP, team:g.team}, {g:1})}
     ${pbox(g.mode === 'exp' ? `Expected line <span class="muted" style="font-weight:400">· over his ${g.GP} games</span>` : past ? `${g.season} season line <span class="muted" style="font-weight:400">· ${esc(g.team)}</span>` : 'Season line', line)}
