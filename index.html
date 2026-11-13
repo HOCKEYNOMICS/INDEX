@@ -265,6 +265,20 @@ tr.vcut td{border-top:2px dashed var(--red)}
 .vg2{display:grid;gap:16px;align-items:start;grid-template-columns:repeat(auto-fit,minmax(min(100%,600px),1fr))}
 .vsub{font-family:Oswald;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:#6B7A8D;margin:12px 0 4px}
 .vsc{padding:12px 14px}.vsl{display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;color:#6B7A8D}.vsl .vtn{flex:1;font-weight:600}.vsl b{font-family:Oswald;font-size:22px}.vsl.w{color:var(--navy)}.vsl.w .vtn{font-weight:800}.vsf{font-size:12px;border-top:1px solid var(--line);margin-top:6px;padding-top:6px}
+.land .puck.labbtn{position:relative;overflow:visible}.land .labbtn + .hint{margin-top:18px!important}
+.labtape{position:absolute;left:14px;right:14px;bottom:-11px;transform:rotate(-3deg);background:repeating-linear-gradient(-45deg,#FFD21F 0 14px,#111 14px 28px);color:#fff;font-size:9.5px;letter-spacing:.14em;padding:2px 0;text-align:center;text-shadow:0 0 3px #000,0 0 3px #000;box-shadow:0 2px 6px rgba(0,0,0,.4);pointer-events:none;white-space:nowrap}
+.lab .labscene{width:min(760px,100%);height:auto;margin:6px 0 0;filter:drop-shadow(0 12px 24px rgba(0,0,0,.35))}
+.lab .lbstick{transform-origin:388px 300px;animation:lbstir 2.4s ease-in-out infinite}
+@keyframes lbstir{0%,100%{transform:rotate(-7deg)}50%{transform:rotate(7deg)}}
+.lab .lbwave{animation:lbwave 2s linear infinite}@keyframes lbwave{to{transform:translateX(-100px)}}
+.lab .lbb{animation:lbbub 2.6s ease-in infinite;opacity:0}.lab .lbb.b2{animation-delay:.8s}.lab .lbb.b3{animation-delay:1.6s}
+@keyframes lbbub{0%{transform:translateY(0);opacity:0}15%{opacity:.9}100%{transform:translateY(-110px);opacity:0}}
+.lab .lbpuff{transform-origin:372px 110px;animation:lbpuff 3s ease-in-out infinite}@keyframes lbpuff{0%,100%{transform:translateY(0) scale(1);opacity:.95}50%{transform:translateY(-8px) scale(1.06);opacity:.8}}
+.lab .lbbeacon{animation:lbblink 1s steps(1) infinite}@keyframes lbblink{50%{fill:#5a3b00}}
+.lab .lbtape{animation:lbsway 4s ease-in-out infinite;transform-origin:400px 207px}@keyframes lbsway{0%,100%{transform:translateY(0)}50%{transform:translateY(3px)}}
+.lab .labzam{width:110px;height:66px;margin:-34px auto 4px;animation:labzam 9s linear infinite;filter:drop-shadow(0 3px 3px rgba(0,0,0,.45))}.lab .labzam svg{width:100%;height:100%}
+@keyframes labzam{0%{transform:translateX(-46vw)}48%{transform:translateX(46vw)}50%{transform:translateX(46vw) scaleX(-1)}98%{transform:translateX(-46vw) scaleX(-1)}100%{transform:translateX(-46vw)}}
+@media(prefers-reduced-motion:reduce){.lab *{animation:none!important}}
 .land .pucks{display:flex;justify-content:center;align-items:flex-start;gap:22px;flex-wrap:wrap;margin-top:30px}
 .land .pcol{display:flex;flex-direction:column;align-items:center}
 .land .pucks .puck{margin-top:0;font-size:17px;padding:13px 26px;white-space:nowrap;box-sizing:border-box}
@@ -593,7 +607,7 @@ V.welcome = () => `<section class="land">${rinkSVG()}<div class="land-in">
   <span class="badge">SEASON ${W.season}</span>
   <div class="pucks">
    <div class="pcol"><a class="puck" href="#vault"><span class="pk">🏒</span> THE STAT VAULT</a><div class="hint">Real NHL stats</div></div>
-   <div class="pcol"><a class="puck" href="#rankings"><span class="pk">🏒</span> FANTASY LAB</a><div class="hint">Fantasy hockey stats</div></div>
+   <div class="pcol"><a class="puck labbtn" href="#lab"><span class="pk">🏒</span> FANTASY LAB<span class="labtape">🚧 UNDER RENOVATION 🚧</span></a><div class="hint">Fantasy hockey stats · opening soon</div></div>
    <div class="pcol"><a class="puck" href="#standings"><span class="pk">🏒</span> PRIVATE LEAGUES</a><div class="hint">Enter No More Kids Play</div></div>
   </div>
   </div><div class="hem"></div></section>`;
@@ -4092,14 +4106,60 @@ V['vault-contracts'].after = () => { const s = state.vct, rr = () => { const y =
   $('#vcthead').onclick = e => { const k = e.target.closest('th')?.dataset.k; if (!k) return; if (s.sort === k) s.dir *= -1; else { s.sort = k; s.dir = ['name', 'team', 'pos', 'status', 'exp', 'yrs'].includes(k) ? 1 : -1; } rr(); };
   document.querySelectorAll('[data-vctteam]').forEach(r => r.onclick = () => { s.team = r.dataset.vctteam; rr(); const t = $('#vctq'); if (t) t.scrollIntoView({block:'center'}); }); };
 
+/* ---------- Fantasy Lab: closed for renovations ---------- */
+V.lab = () => `<section class="land lab">${rinkSVG()}<div class="land-in">
+  <div class="k">FANTASY LAB</div>
+  <svg class="labscene" viewBox="0 0 800 430" role="img" aria-label="The Fantasy Lab is closed for renovations">
+    <defs>
+      <linearGradient id="lbIce" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9f3fb"/><stop offset="1" stop-color="#bcd6ec"/></linearGradient>
+      <linearGradient id="lbGoo" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9dff6a"/><stop offset="1" stop-color="#2fb84a"/></linearGradient>
+      <pattern id="lbTape" width="44" height="40" patternUnits="userSpaceOnUse" patternTransform="rotate(35)"><rect width="44" height="40" fill="#FFD21F"/><rect width="20" height="40" fill="#111"/></pattern>
+      <clipPath id="lbFlask"><path d="M330 150 h44 v52 l52 110 a18 18 0 0 1 -16 26 h-116 a18 18 0 0 1 -16 -26 l52 -110z"/></clipPath>
+    </defs>
+    <ellipse cx="400" cy="385" rx="390" ry="40" fill="url(#lbIce)" opacity=".95"/>
+    <ellipse cx="400" cy="385" rx="390" ry="40" fill="none" stroke="#c8102e" stroke-width="2" stroke-dasharray="10 6" opacity=".5"/>
+    <!-- giant flask with a hockey stick stirring the goo -->
+    <g class="lbstick"><rect x="384" y="60" width="9" height="240" rx="4" fill="#c9a26a" stroke="#7a5a2c" stroke-width="2"/><rect x="380" y="292" width="54" height="16" rx="6" fill="#c9a26a" stroke="#7a5a2c" stroke-width="2"/><rect x="384" y="96" width="9" height="34" fill="#222"/></g>
+    <g clip-path="url(#lbFlask)"><rect x="250" y="230" width="300" height="140" fill="url(#lbGoo)"/><path class="lbwave" d="M250 232 q25 -12 50 0 t50 0 t50 0 t50 0 t50 0 t50 0 v20 h-300z" fill="#c4ff9a"/></g>
+    <path d="M330 150 h44 v52 l52 110 a18 18 0 0 1 -16 26 h-116 a18 18 0 0 1 -16 -26 l52 -110z" fill="rgba(255,255,255,.18)" stroke="#e6f1fb" stroke-width="5"/>
+    <rect x="322" y="140" width="60" height="14" rx="5" fill="#e6f1fb"/>
+    <circle class="lbb b1" cx="335" cy="300" r="7" fill="#e9ffd9"/><circle class="lbb b2" cx="362" cy="315" r="5" fill="#e9ffd9"/><circle class="lbb b3" cx="350" cy="320" r="9" fill="#e9ffd9"/>
+    <g class="lbpuff"><circle cx="352" cy="118" r="16" fill="#dfe8f1"/><circle cx="372" cy="104" r="20" fill="#dfe8f1"/><circle cx="396" cy="114" r="15" fill="#dfe8f1"/><text x="372" y="112" text-anchor="middle" font-family="Oswald,sans-serif" font-size="22" fill="#5a6b7d">?!</text></g>
+    <text x="330" y="292" font-family="Oswald,sans-serif" font-size="13" fill="#0b4a1c" opacity=".8">P.A.M</text>
+    <!-- traffic cones -->
+    ${[[120, 1], [718, .8], [756, .95]].map(([x, s]) => `<g transform="translate(${x} ${385 - 70 * s}) scale(${s})"><path d="M30 0 L52 70 H8z" fill="#ff6a13"/><path d="M22 26 h16 l4 14 h-24z" fill="#fff"/><path d="M15 50 h30 l3 10 h-36z" fill="#fff"/><rect x="0" y="68" width="60" height="9" rx="3" fill="#d94e05"/></g>`).join('')}
+    <!-- the sign -->
+    <g transform="translate(500 236) rotate(4) scale(.92)"><rect x="56" y="120" width="10" height="72" fill="#6b7685"/><rect x="146" y="120" width="10" height="72" fill="#6b7685"/>
+      <rect x="20" y="0" width="172" height="132" rx="10" fill="#FFD21F" stroke="#111" stroke-width="5"/>
+      <text x="106" y="36" text-anchor="middle" font-family="Oswald,sans-serif" font-weight="700" font-size="22" fill="#111">CLOSED FOR</text>
+      <text x="106" y="66" text-anchor="middle" font-family="Oswald,sans-serif" font-weight="700" font-size="22" fill="#111">RENOVATIONS</text>
+      <text x="106" y="92" text-anchor="middle" font-family="Inter,sans-serif" font-size="11.5" fill="#111">Math in progress.</text>
+      <text x="106" y="110" text-anchor="middle" font-family="Inter,sans-serif" font-size="11.5" fill="#111">Hard hats &amp; elbow pads required.</text></g>
+    <!-- hard-hat on a puck -->
+    <g transform="translate(176 300)"><ellipse cx="40" cy="60" rx="40" ry="12" fill="#111"/><rect x="0" y="44" width="80" height="16" fill="#1b1b1b"/><ellipse cx="40" cy="44" rx="40" ry="12" fill="#2a2a2a"/>
+      <path d="M12 40 a28 26 0 0 1 56 0z" fill="#FFD21F" stroke="#b58d00" stroke-width="2"/><rect x="4" y="36" width="72" height="7" rx="3" fill="#FFD21F" stroke="#b58d00" stroke-width="2"/>
+      <circle cx="30" cy="51" r="3" fill="#fff"/><circle cx="50" cy="51" r="3" fill="#fff"/><path d="M33 56 q7 4 14 0" stroke="#fff" stroke-width="2" fill="none"/></g>
+    <!-- caution tape across the whole thing -->
+    <g class="lbtape"><rect x="-40" y="190" width="900" height="34" fill="url(#lbTape)" transform="rotate(-9 400 207)"/>
+      <text x="400" y="214" text-anchor="middle" transform="rotate(-9 400 207)" font-family="Oswald,sans-serif" font-weight="700" font-size="17" letter-spacing="3" fill="#fff" stroke="#111" stroke-width="3" paint-order="stroke">CAUTION · LAB UNDER CONSTRUCTION · DO NOT FEED THE ALGORITHMS · CAUTION</text></g>
+    <!-- blinking work light -->
+    <g transform="translate(64 190)"><rect x="8" y="20" width="10" height="150" fill="#6b7685"/><rect x="0" y="0" width="26" height="24" rx="6" fill="#333"/><circle class="lbbeacon" cx="13" cy="10" r="9" fill="#ffb000"/></g>
+  </svg>
+  <div class="labzam" aria-hidden="true">${ZAMBONI_SVG}</div>
+  <h1 style="font-size:clamp(28px,6vw,60px);margin:6px 0 4px">CLOSED FOR RENOVATIONS</h1>
+  <div class="sub">The Fantasy Lab is getting a fresh coat of ice. Our scientists are recalibrating the beakers, re-sharpening the decimals and teaching the algorithm to stop drafting goalies in the first round. <b>Expected reopening:</b> right after the Zamboni finishes its lap.</div>
+  <span class="badge">🚧 WORK IN PROGRESS</span>
+  <a class="puck" href="#" style="margin-top:26px"><span class="pk">🏠</span> BACK TO THE RINK</a>
+  </div><div class="hem"></div></section>`;
+
 /* ================= router & delegation ================= */
 function go(r){ if (location.hash.slice(1)===r) render(); else location.hash = r; }
 function current(){ const h = location.hash.slice(1); return !h ? 'welcome' : V[h] ? h : 'standings'; }
 function render(){
   const r = current();
-  document.body.classList.toggle('landing', r==='welcome');
+  document.body.classList.toggle('landing', r==='welcome' || r==='lab');
   const isV = r.startsWith('vault'); document.body.classList.toggle('vault', isV); vBrand(isV); NHL_VAULT = r === 'vault-sched'; if (!NHL_VAULT && NHLV.v === 'tsched') NHLV.v = 'day'; if (NHL_VAULT && NHLV.v === 'stand') NHLV.v = 'tsched';
-  const past = W.week !== LATEST && r !== 'records' && r !== 'welcome' && !isV;
+  const past = W.week !== LATEST && r !== 'records' && r !== 'welcome' && r !== 'lab' && !isV;
   app.innerHTML = (past ? `<div class="pastbar"><span>📼 You're viewing the <b>Week ${W.week}</b> archive.</span><button class="btn" id="tolatest">Back to Week ${LATEST}</button></div>` : '') + V[r]();
   const tl = $('#tolatest'); if (tl) tl.onclick = () => setWeek(LATEST);
   document.querySelectorAll('#nav a, .rulesbtn').forEach(a=>a.classList.toggle('on', a.dataset.r===r));
