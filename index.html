@@ -513,6 +513,22 @@ function discHTML(p){ const d = discOf(p), [ic, lab, col] = discStatus(d), pg = 
     <div class="cb"><span style="text-align:left">Discipline score</span><i><b style="width:${d}%;background:var(--blue)"></b></i><span>${d.toFixed(0)}</span></div>
     <div style="display:flex;gap:18px;font-size:12.5px;margin-top:4px"><span>PIM <b>${p.PIM}</b></span><span>Per game <b>${pg.toFixed(2)}</b></span></div>
     <p class="muted" style="font-size:11px;margin:6px 0 0">100 = fewest penalty minutes in the league (per game). Shown for flavour only: it does not count in the P.A.M grade.</p></div>`; }
+// Availability: games played ÷ his team's real NHL games played (from DATA.nhl finals). Not part of the grade.
+let AV_TGP = null;
+function availTGP(){ if (AV_TGP) return AV_TGP; const m = {}, N = DATA.nhl;
+  ((N && N.g) || []).forEach(r => { if (r[4] == null) return; [r[2], r[3]].forEach(t => { const k = t === 'VEG' ? 'VGK' : t; m[k] = (m[k] || 0) + 1; }); });
+  const v = Object.values(m); m._avg = v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0; return AV_TGP = m; }
+const AVAIL_LV = [[1,'🦾','Iron man','#1F8A4C'],[0.95,'💪','Durable','#3C9A5F'],[0.9,'✅','Reliable','#2E7DBA'],[0.8,'🩹','Banged up','#C99A1E'],[0.65,'🔁','In and out','#D9821E'],[0.5,'🪑','Part-timer','#D9631E'],[0,'👻','Cameo','#C8102E']];
+function availStatus(r){ const l = AVAIL_LV.find(x => r >= x[0] - 1e-9); return [l[1], l[2], l[3]]; }
+const AVAIL_SK_NOTE = '🦾 Iron man 100% · 💪 Durable 95–99% · ✅ Reliable 90–94% · 🩹 Banged up 80–89% · 🔁 In and out 65–79% · 🪑 Part-timer 50–64% · 👻 Cameo under 50%.';
+function availStatusG(r){ return r >= 0.65 ? ['🧱','Workhorse','#1F8A4C'] : r >= 0.45 ? ['🔄','Tandem','#2E7DBA'] : r >= 0.2 ? ['🪑','Backup','#C99A1E'] : ['🎟️','Spot duty','#C8102E']; }
+const AVAIL_G_NOTE = 'Goalies rarely play every night, so the scale is different: 🧱 Workhorse 65%+ · 🔄 Tandem 45–64% · 🪑 Backup 20–44% · 🎟️ Spot duty under 20%.';
+function availHTML(p, opt){ opt = opt || {}; const T = availTGP(), tk = p.team === 'VEG' ? 'VGK' : p.team;
+  const team = opt.teamGP != null ? opt.teamGP : (T[tk] || Math.round(T._avg) || p.GP), tg = Math.max(team, p.GP, 1), r = Math.min(1, p.GP / tg), pct = r * 100, [ic, lab, col] = (opt.g ? availStatusG : availStatus)(r), miss = tg - p.GP;
+  return `<div class="pbox"><div class="pbh"><h3>Availability</h3><span class="pill" style="background:${col};color:#fff">${ic} ${lab}</span></div>
+    <div class="cb"><span style="text-align:left">${opt.g ? 'Share of team games' : 'Games available'}</span><i><b style="width:${pct}%;background:var(--blue)"></b></i><span>${pct.toFixed(0)}%</span></div>
+    <div style="display:flex;gap:18px;flex-wrap:wrap;font-size:12.5px;margin-top:4px"><span>Played <b>${p.GP}</b> of <b>${tg}</b> ${opt.teamGP != null ? 'games' : esc(tk) + ' games'}</span><span>${opt.g ? 'Did not play' : 'Missed'} <b>${miss}</b></span>${opt.teamGP != null ? '' : `<span>League avg team GP <b>${T._avg.toFixed(1)}</b></span>`}</div>
+    <p class="muted" style="font-size:11px;margin:6px 0 0">${opt.note || 'His games played ÷ his team\'s games played (NHL finals' + (DATA.nhl && DATA.nhl.meta && DATA.nhl.meta.resultsThrough ? ' through ' + DATA.nhl.meta.resultsThrough : '') + '). ' + (opt.g ? 'Games he did not play are usually nights as the backup, or injury' : 'Missed games can be injuries, healthy scratches or a call-up') + '; a traded player is measured against his current team, capped at 100%. ' + (opt.g ? 'A goalie\'s games include relief appearances. ' + AVAIL_G_NOTE : AVAIL_SK_NOTE) + ' Not part of the P.A.M grade.'}</p></div>`; }
 const CATSHORT = {PM:'+/−', HIT:'HIT', BLK:'BLK', PPP:'PPP'};
 const INSIGHT = {
  G:'Goals are the scarcest offensive currency in fantasy hockey and the most volatile category week to week. Elite finishers combine shot volume with power-play deployment, so cross-check this list with Shots on Goal and Power Play Goals before paying for a hot streak.',
@@ -3412,6 +3428,7 @@ function openGoalie(id){
   const trend = g.trend ? `<div style="font-size:13px"><span class="pill ${g.trend==='up'?'st-g':'st-r'}">${g.trend==='up'?'▲ Role rising':'▼ Role falling'}</span> ${esc(g.trendNote)}</div>` : `<div class="muted" style="font-size:13px">No role change reported. Goalie grades started in Week 5, so there's no week-to-week grade history yet.</div>`;
   $('#md').innerHTML = cardHead(g.name, g.team, Math.round(g.grade), `${esc(g.team)} · GOALIE`, '', info) + `<div class="mb ice">${cardGradeSw('gl', g.id)}
     ${pbox('P.A.M grade breakdown', cats)}
+    ${availHTML(g, {g:1})}
     ${pbox('Season line', line)}
     ${pbox('Trend', trend)}
     <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap"><button class="btn" id="mgcmp">Compare this goalie</button><button class="btn ghost" id="mgteam">See all ${g.team} goalies</button></div></div>`;
@@ -3668,6 +3685,7 @@ function openPlayer(id){
   $('#md').innerHTML = cardHead(p.name, p.team, Math.round(p.grade), `${esc(p.team)} · ${posFull(p).toUpperCase()}`, p.dep ? depTags(p, true) : '', info) + `<div class="mb ice">${cardGradeSw('pl', p.id)}
     ${pbox('P.A.M grade breakdown', cats)}
     ${discHTML(p)}
+    ${availHTML(p)}
     ${pbox('Season line', line)}
     ${pbox('Grade trend' + (p.hist.length>1?` <span class="muted" style="font-weight:400">(week ${p.hist[0].w} → ${W.week})</span>`:''), trend)}
     <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap"><button class="btn" id="mcmp">Compare this player</button><button class="btn ghost" id="mteam">See ${p.team} roster</button></div></div>`;
@@ -3692,8 +3710,10 @@ const VCONF = {Eastern:['Atlantic','Metropolitan'], Western:['Central','Pacific'
 const VTN = {ANA:'Anaheim Ducks',BOS:'Boston Bruins',BUF:'Buffalo Sabres',CAR:'Carolina Hurricanes',CBJ:'Columbus Blue Jackets',CGY:'Calgary Flames',CHI:'Chicago Blackhawks',COL:'Colorado Avalanche',DAL:'Dallas Stars',DET:'Detroit Red Wings',EDM:'Edmonton Oilers',FLA:'Florida Panthers',LAK:'Los Angeles Kings',MIN:'Minnesota Wild',MTL:'Montréal Canadiens',NJD:'New Jersey Devils',NSH:'Nashville Predators',NYI:'New York Islanders',NYR:'New York Rangers',OTT:'Ottawa Senators',PHI:'Philadelphia Flyers',PIT:'Pittsburgh Penguins',SEA:'Seattle Kraken',SJS:'San Jose Sharks',STL:'St. Louis Blues',TBL:'Tampa Bay Lightning',TOR:'Toronto Maple Leafs',UTA:'Utah Mammoth',VAN:'Vancouver Canucks',VGK:'Vegas Golden Knights',WPG:'Winnipeg Jets',WSH:'Washington Capitals',FA:'Free agent'};
 const VDOF = {}; Object.entries(VDIV).forEach(([d, ts]) => ts.forEach(t => VDOF[t] = d));
 const VCOF = d => VCONF.Eastern.includes(d) ? 'Eastern' : 'Western';
-// skater categories (13, every column of the skater file) · PIM counts as discipline: fewer = better
-const VSC = [['G','Goals'],['A','Assists'],['PTS','Points'],['PM','Plus / Minus'],['PIM','Penalty Minutes (fewer = better)'],['SOG','Shots on Goal'],['GWG','Game-Winning Goals'],['PPG','Power Play Goals'],['PPA','Power Play Assists'],['SHG','Short-Handed Goals'],['SHA','Short-Handed Assists'],['HIT','Hits'],['BLK','Blocked Shots']];
+// skater grade: 6 independent categories (Nov 13 2026). Points, PP/SH goals and assists, GWG and PIM are shown but not graded.
+const VSC = [['G','Goals'],['A','Assists'],['SOG','Shots on Goal'],['PM','Plus / Minus'],['HIT','Hits'],['BLK','Blocked Shots']];
+// shown in the breakdown for reference only: overlap with goals/assists (or, for PIM, already reflected in production) · not in the grade
+const VSREF = [['PTS','Points'],['PPG','Power Play Goals'],['PPA','Power Play Assists'],['SHG','Short-Handed Goals'],['SHA','Short-Handed Assists'],['GWG','Game-Winning Goals'],['PIM','Penalty Minutes (fewer = better)']];
 const VSNEG = {PIM:1};
 // goalie categories (10, every column of the goalie file) · [key, name, sign, rate?]
 const VGC = [['W','Wins',1,0],['L','Losses',-1,0],['OTL','OT Losses',-1,0],['GAA','Goals-Against Average',-1,1],['GA','Goals Against',-1,0],['SA','Shots Against (workload)',1,0],['SV','Saves',1,0],['SVP','Save Percentage',1,1],['SO','Shutouts',1,0],['MIN','Minutes (workload)',1,0]];
@@ -3713,7 +3733,7 @@ const vxk = (n, pos) => n.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLo
 const vExpOn = () => !!DATA.vexp;
 function vGradeSk(L){
   const tot = L.map(() => 0); L.forEach(o => o.score = {});
-  VSC.forEach(([c]) => { const z = vz(L.map(o => o[c] / o.GP * 82)); L.forEach((o, i) => { const s = VSNEG[c] ? -z[i] : z[i]; o.score[c] = vcl(50 + 10 * s); tot[i] += s; }); });
+  VSC.concat(VSREF).forEach(([c]) => { const g = VSC.some(x => x[0] === c), z = vz(L.map(o => o[c] / o.GP * 82)); L.forEach((o, i) => { const s = VSNEG[c] ? -z[i] : z[i]; o.score[c] = vcl(50 + 10 * s); if (g) tot[i] += s; }); });
   const pg = L.map(o => o.PIM / o.GP), mn = Math.min(...pg), mx = Math.max(...pg); L.forEach((o, i) => o.score.DISC = mx > mn ? (mx - pg[i]) / (mx - mn) * 100 : 50);
   const adj = vz(tot); L.forEach((o, i) => { o.raw = tot[i]; o.adj = adj[i]; o.grade = vcl(50 + 10 * adj[i]); });
   L.sort((a, b) => b.adj - a.adj || b.PTS - a.PTS); const pr = {}, tr = {};
@@ -3852,7 +3872,7 @@ function vsRows(){ const s = state.vs, L = vsFiltered(), pages = Math.max(1, Mat
   document.querySelectorAll('#vshead th').forEach(th => th.classList.toggle('sorted', th.dataset.k === s.sort)); }
 const VTEAMS = Object.keys(VDOF).sort();
 V['vault-sk'] = () => { const s = state.vs, L = vSkL();
-  return phead('🏛️ The Stat Vault · Real NHL', 'Skaters · P.A.M grade', `All ${L.length} NHL skaters${VPS[vmode()] ? ' of ' + VPS[vmode()] : ''} graded on all 13 categories of the stats file, with no schedule or position multiplier. Search, filter and tap a column to sort. Tap a player for the full profile.`) +
+  return phead('🏛️ The Stat Vault · Real NHL', 'Skaters · P.A.M grade', `All ${L.length} NHL skaters${VPS[vmode()] ? ' of ' + VPS[vmode()] : ''} graded on 6 categories (goals, assists, shots, +/−, hits, blocks), with no schedule or position multiplier. Search, filter and tap a column to sort. Tap a player for the full profile.`) +
   `<div class="card">${vModeSel()}<div class="ctrls"><input type="search" id="vsq" placeholder="Search a skater…" value="${esc(s.q)}"></div>
    <div class="ctrls"><div class="chips">${['ALL', 'C', 'LW', 'RW', 'D'].map(p => `<button class="chip ${s.pos === p ? 'on' : ''}" data-vpos="${p}">${p === 'ALL' ? 'All positions' : POSP[p]}</button>`).join('')}</div></div>
    <div class="ctrls"><label class="lb">NHL team <select id="vsteam"><option value="ALL">All teams</option>${VTEAMS.map(t => `<option value="${t}" ${s.team === t ? 'selected' : ''}>${t} · ${esc(VTN[t])}</option>`).join('')}</select></label>
@@ -3934,13 +3954,13 @@ V['vault-teams'].after2 = () => { const b = $('#vtback'); if (b) b.onclick = () 
 
 /* ---------- How it works ---------- */
 V['vault-method'] = () => phead('🏛️ The Stat Vault · Real NHL', 'How the P.A.M grade works', 'A pure hockey grade: every category in the stats files, no fantasy rules.') +
-  `<div class="grid g2"><div class="card"><h2>Skaters · 13 categories</h2><p>${VSC.map(([, n]) => n).join(' · ')}.</p>
+  `<div class="grid g2"><div class="card"><h2>Skaters · 6 graded categories</h2><p>${VSC.map(([, n]) => n).join(' · ')}.</p>
    <ol style="padding-left:18px;line-height:1.6"><li><b>Per-game rates × 82 games.</b> Every total is divided by games played and scaled to an 82-game season, so a player who missed time is judged on how he plays when he plays.</li>
    <li><b>No multipliers.</b> Unlike the league P.A.M, there is no Schedule Opportunity Factor (light nights) and no Positional Flexibility Factor. What happened on the ice is all that counts.</li>
    <li><b>Category z-scores.</b> Each category is compared with every NHL skater: how many standard deviations above or below the league average. Each bar in a player's profile is 50 + 10 × that z-score, kept between 0 and 100.</li>
-   <li><b>Penalty minutes count as discipline:</b> fewer minutes = a higher score.</li>
-   <li><b>The grade.</b> The 13 z-scores are added up, then put on the same curve: 50 = an average NHL skater, 60 = one standard deviation better, 70+ = elite. Kept between 0 and 100.</li></ol>
-   <p class="muted">Points count alongside goals and assists, and power-play / short-handed goals and assists count alongside them too, so scorers get the most credit, exactly as the stats sheet weighs them.</p></div>
+   <li><b>No double counting.</b> Points (goals + assists), power-play and short-handed goals and assists, and game-winning goals are all goals or assists already counted, so they are left out of the grade. Penalty minutes are left out too: their cost already shows up in the production. All of them still appear in the season line and, for reference, in the grade breakdown.</li>
+   <li><b>The grade.</b> The 6 z-scores are added up, then put on the same curve: 50 = an average NHL skater, 60 = one standard deviation better, 70+ = elite. Kept between 0 and 100.</li></ol>
+   <p class="muted">Each goal and each assist counts exactly once, so a player is graded on what he produced, not on how many columns it shows up in. Hits, blocks and +/− carry real weight next to the scoring.</p></div>
    <div class="card"><h2>Goalies · 10 categories</h2><p>${VGC.map(([, n, sg]) => `${n} ${sg > 0 ? '▲' : '▼'}`).join(' · ')}.</p>
    <ol style="padding-left:18px;line-height:1.6"><li><b>Counting stats per game × 82</b> (wins, losses, OT losses, goals against, shots against, saves, shutouts, minutes).</li>
    <li><b>Rates as they are:</b> GAA (goals against × 60 ÷ minutes) and SV% (saves ÷ shots against).</li>
@@ -3963,16 +3983,19 @@ function openVPlayer(id){
   vSkaters(VLAST, 'exp'); let L = vSkL(), p = L && L.byXk[id]; if (!p) { L = vSkaters(VLAST); p = L.byXk[id]; } if (!p) return; const past = !!VPS[p.mode]; vTrend(p, 's'); const lp = vLeague(p);
   const info = pinfo([
     ['Overall rank', `#${p.rank} of ${L.length}`], ['Position rank', `#${p.posRank} of ${p.pos}`], ['Team rank', `#${p.teamRank} of ${esc(p.team)}`], ['Games played', vgpCell(p)]]);
-  const cats = VSC.map(([c, n]) => `<div class="cb"><span style="text-align:left">${n}</span><i><b style="width:${p.score[c]}%;background:var(--blue)"></b></i><span>${p.score[c].toFixed(0)}</span></div>`).join('')
-    + gradeParts([['Sum of category z-scores', sgn(p.raw, 2), '13 categories, per-game rates × 82; no schedule or position multiplier'], [`Overall P.A.M grade${p.mode === 'exp' ? ' (expected)' : ''}`, p.grade.toFixed(1), '50 + 10 × standardized total, kept 0–100', true]]);
+  const vbar = (c, n, col) => `<div class="cb"><span style="text-align:left">${n}</span><i><b style="width:${p.score[c]}%;background:${col}"></b></i><span>${p.score[c].toFixed(0)}</span></div>`;
+  const cats = VSC.map(([c, n]) => vbar(c, n, 'var(--blue)')).join('')
+    + `<div style="margin-top:10px;padding-top:8px;border-top:1px dashed var(--line)"><div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:4px">For reference · not counted in the grade</div>${VSREF.map(([c, n]) => vbar(c, n, '#9AA8B8')).join('')}<p class="muted" style="font-size:11px;margin:6px 0 0">Points, power-play and short-handed goals and assists, and game-winning goals are goals or assists already graded above; penalty minutes are already reflected in production. Same 0–100 scale, shown for context only.</p></div>`
+    + gradeParts([['Sum of category z-scores', sgn(p.raw, 2), '6 graded categories, per-game rates × 82; no schedule or position multiplier'], [`Overall P.A.M grade${p.mode === 'exp' ? ' (expected)' : ''}`, p.grade.toFixed(1), '50 + 10 × standardized total, kept 0–100', true]]);
   const ln = [['G','G'],['A','A'],['PTS','PTS'],['+/−','PM'],['PIM','PIM'],['SOG','SOG'],['PPG','PPG'],['PPA','PPA'],['SHG','SHG'],['SHA','SHA'],['GWG','GWG'],['Hits','HIT'],['Blocks','BLK']];
   const line = `<div class="tw"><table class="t"><tbody>${ln.map(([k, c]) => `<tr><td class="l">${k}</td><td><b>${c === 'PM' ? sgn(vr(p[c])) : vr(p[c])}</b></td><td class="muted">${(p[c] / p.GP).toFixed(2)}/gp</td></tr>`).join('')}</tbody></table></div>`;
   const trend = `<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">${spark(p.hist,120,30,p.trend)}<div style="font-size:13px">${p.hist.length>1 ? p.hist.map(x=>`W${x.w} <b>${x.g.toFixed(1)}</b>`).join(' → ') + (p.trendPct!=null?` · <b>${sgn(p.trendPct*100,0)}%</b> (${sgn(p.trendPts,1)} pts)`:'') : 'Not enough weeks yet.'}</div></div>`;
-  const disc = discHTML({score:{DISC:p.score.DISC}, PIM:p.PIM, GP:p.GP}).replace('Shown for flavour only: it does not count in the P.A.M grade.', 'In the Stat Vault, penalty minutes also count in the grade (fewer = better).');
+  const disc = discHTML({score:{DISC:p.score.DISC}, PIM:p.PIM, GP:p.GP}).replace('Shown for flavour only: it does not count in the P.A.M grade.', 'In the Stat Vault, penalty minutes do not count in the grade either.');
   $('#md').innerHTML = cardHead(p.name, p.team, Math.round(p.grade), `${esc(p.team)} · ${(POSN[p.pos] || p.pos).toUpperCase()}`, !past && lp && lp.dep ? depTags(lp, true) : '', info).replace('P.A.M GRADE', 'P.A.M GRADE') + `<div class="mb ice">${vCardSw('pl', p)}
-    <div class="muted" style="font-size:12px;margin:0 0 4px">🏛️ P.A.M ${p.mode === 'exp' ? 'expected ' : past ? p.season + ' ' : ''}grade · all 13 categories · ${vasof()}</div>
+    <div class="muted" style="font-size:12px;margin:0 0 4px">🏛️ P.A.M ${p.mode === 'exp' ? 'expected ' : past ? p.season + ' ' : ''}grade · 6 graded categories · ${vasof()}</div>
     ${pbox('P.A.M grade breakdown', cats)}
     ${disc}
+    ${past ? availHTML({GP:p.GP, team:p.team}, {teamGP:82, note:p.season + ' full season: games played out of 82. ' + AVAIL_SK_NOTE + ' Not part of the P.A.M grade.'}) : availHTML({GP:p.GP, team:p.team})}
     ${pbox(p.mode === 'exp' ? `Expected line <span class="muted" style="font-weight:400">· over his ${p.GP} games</span>` : past ? `${p.season} season line <span class="muted" style="font-weight:400">· ${esc(p.team)}</span>` : 'Season line', line)}
     ${past ? '' : pbox('Grade trend' + (p.hist.length>1?` <span class="muted" style="font-weight:400">(week ${p.hist[0].w} → ${VLAST})</span>`:''), trend)}
     <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">${past ? '' : `<button class="btn" id="mvteam">See the ${esc(VTN[p.team] || p.team)} page</button>`}<button class="btn ghost" id="mvall">All ${p.team} skaters</button></div></div>`;
@@ -3994,6 +4017,7 @@ function openVGoalie(id){
   $('#md').innerHTML = cardHead(g.name, g.team === 'FA' ? '' : g.team, Math.round(g.grade), `${esc(g.team)} · GOALIE`, '', info).replace('P.A.M GRADE', 'P.A.M GRADE') + `<div class="mb ice">${vCardSw('gl', g)}
     <div class="muted" style="font-size:12px;margin:0 0 4px">🏛️ P.A.M ${g.mode === 'exp' ? 'expected ' : past ? g.season + ' ' : ''}grade · all 10 categories · ${vasof()}</div>
     ${pbox('P.A.M grade breakdown', cats)}
+    ${g.team === 'FA' ? '' : past ? availHTML({GP:g.GP, team:g.team}, {g:1, teamGP:82, note:g.season + ' full season: games played out of 82. ' + AVAIL_G_NOTE + ' Not part of the P.A.M grade.'}) : availHTML({GP:g.GP, team:g.team}, {g:1})}
     ${pbox(g.mode === 'exp' ? `Expected line <span class="muted" style="font-weight:400">· over his ${g.GP} games</span>` : past ? `${g.season} season line <span class="muted" style="font-weight:400">· ${esc(g.team)}</span>` : 'Season line', line)}
     ${past ? '' : pbox('Grade trend', trend)}
     <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">${!past && VTN[g.team] && g.team !== 'FA' ? `<button class="btn" id="mvteam">See the ${esc(VTN[g.team])} page</button>` : ''}<button class="btn ghost" id="mvall">All goalies</button></div></div>`;
