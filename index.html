@@ -1371,7 +1371,7 @@ function trsV2HTML(V, me){   // the asking team's analysis only
     ${notes.length ? `<div class="v2h">Assumptions</div><ul class="v2n2">${notes.map(n => `<li>${n}</li>`).join('')}</ul>` : ''}
     <details style="margin-top:10px"><summary class="muted" style="cursor:pointer;font-size:12.5px;font-weight:700">How the trade grade works</summary><ul style="font-size:12.5px;padding-left:18px;margin:6px 0 0">
       <li><b>The question:</b> how many more categories can you expect to win per weekly matchup, against the teams you actually face?</li>
-      <li><b>Projection:</b> every roster is run through the P.A.M forecast model for the rest of the regular season (weeks ${W.week + 1}–${X.nW}) and the playoff weeks (${X.qf}–${X.fw}): expected per-game rates (this season blended with the two past seasons), the real lineup slots filled day by day, the saved NHL schedule, and time missed for injured players (from the roster statuses).</li>
+      <li><b>Projection:</b> every roster is run through the P.A.M forecast model for the rest of the regular season (weeks ${W.week + 1}–${X.nW}) and the playoff weeks (${X.qf}–${X.fw}): expected per-game rates (this season blended with the two past seasons), your league's lineup slots, filled each day with your best available players (a simulation, not the managers' actual daily lineups), the saved NHL schedule, and time missed for injured players (from the roster statuses).</li>
       <li><b>Win chance:</b> each team's totals become a weekly average; for every opponent and every category, win chance = how far apart the two teams are compared with the league's normal week-to-week swing in that category. Tight races move a lot, lopsided ones barely move.</li>
       <li><b>Opponents:</b> each remaining opponent counts as many times as you play them; the trade partner is judged on their own schedule. Playoff opponents aren't known yet, so the playoff weeks count every team equally.</li>
       <li><b>Grade:</b> 50 + 60 × the change in expected category wins per matchup (75 % remaining schedule, 25 % playoff weeks). +0.40 ≈ 74 · +0.10 ≈ 56 · −0.40 ≈ 26.</li>
@@ -3373,7 +3373,7 @@ side value         = sum of player values;   net = get − give;   net % = net �
     ['Trade grade (team selected)','0–100 scale, <b>50 = no change</b>. Score = 50 + 60 × the change in expected category wins per matchup, kept between 0 and 100.']])}
    ${F(`Trade grade (since Nov 14, 2026): what decides a head-to-head week, i.e. expected category wins per matchup.
   1. Project every roster with the P.A.M forecast model for the rest of the regular season and for the playoff weeks:
-     expected per-game rates (this season blended with the two past seasons), the real lineup slots filled day by day,
+     expected per-game rates (this season blended with the two past seasons), your league's lineup slots, filled each day with your best available players (a simulation, not the managers' actual daily lineups),
      the saved NHL schedule, and time missed for injured players (from the roster statuses).
   2. Turn each team's totals into a weekly average. For every opponent and every category:
      win chance = Φ( gap ÷ (σ × √2) ),  σ = the league's week-to-week swing in that category (lower is better for GAA).
