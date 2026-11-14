@@ -237,6 +237,16 @@ table.t{border-collapse:collapse;width:100%;font-size:13px;background:#fff}
 .jd{margin-top:6px;display:flex;gap:4px;justify-content:center;flex-wrap:wrap}
 @media(max-width:560px){.jhg{grid-template-columns:1fr}}
 .md .mh.jh .x{color:var(--navy)}
+.v2h{font:700 12px Oswald;letter-spacing:.08em;text-transform:uppercase;color:var(--navy);margin:16px 0 6px}
+.v2g{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;max-width:720px}
+.v2t{background:rgba(255,255,255,.92);border:1px solid var(--ice2);border-radius:10px;padding:10px 12px}
+.v2t .v2l{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);font-weight:700}
+.v2t .v2n{font-family:Oswald;font-size:22px;margin:2px 0;display:flex;align-items:baseline;gap:6px}.v2t .v2n .muted{font-size:17px}.v2t .v2a{font-size:14px;color:var(--steel)}
+.v2t .v2d{font-weight:800;font-size:13px}.v2t .v2s{font-size:11px;color:var(--mute);margin-top:2px}
+.v2o{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:10px 0 0;font-size:12px;max-width:720px}.v2o>.muted{margin-right:4px}
+.v2c{background:rgba(255,255,255,.92);border:1px solid var(--ice2);border-radius:999px;padding:2px 9px}
+.v2bar{position:relative;height:8px;background:var(--ice);border-radius:4px}.v2bar i{position:absolute;top:0;bottom:0;border-radius:4px}.v2bar:after{content:'';position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--steel)}
+tr.v2z td{opacity:.55}.v2n2{margin:0;padding-left:18px;font-size:13px;max-width:720px}
 .ftlegal{margin-top:6px;font-size:11px;line-height:1.45;opacity:.75;max-width:760px;margin-left:auto;margin-right:auto}
 .jersey{width:min(220px,100%);height:auto;filter:drop-shadow(0 10px 14px rgba(11,31,58,.28));display:block;margin:0 auto}
 .jn{font-family:Oswald;font-size:22px;letter-spacing:.05em;margin-top:4px}.js{font-family:Oswald;font-size:11.5px;letter-spacing:.14em;color:#5B6B7F}
@@ -1330,30 +1340,43 @@ function trsV2(me, out, inn, drops){ // me sends out (incl. drops), receives inn
   const risk = out.concat(inn).filter(x => tv2Risk(X.CR, {m: x.p, kind: x.kind, rate: {}}).risk).map(x => x.name);
   const V = {X, R, P, pt, me: sc('me'), ptS: sc('pt'), risk}; TV2R.set(key, V); if (TV2R.size > 3000) TV2R.clear(); return V;
 }
+function trsGauge(score, left, right, mid){   // 0–100 verdict scale with the score marker (same bands as the verdict labels)
+  const col = trsLabel(score)[3], bands = TRS_LABELS.slice().reverse().map(([m, i, l, c], k, A) => { const hi = k < A.length - 1 ? A[k + 1][0] : 101; return `<div title="${esc(l)} (${m}–${hi - 1})" style="flex:${hi - m};background:${c}"></div>`; }).join('');
+  return `<div style="margin:6px 0 4px;max-width:720px">
+    <div style="display:flex;justify-content:space-between;font-size:11px" class="muted"><span>${left}</span><span>${mid}</span><span>${right}</span></div>
+    <div style="position:relative;height:16px;margin:12px 0 26px"><div style="display:flex;height:16px;border-radius:8px;overflow:hidden">${bands}</div>
+      <div style="position:absolute;left:50%;top:-4px;bottom:-4px;width:2px;background:#fff;box-shadow:0 0 0 1px var(--ink)"></div>
+      <div style="position:absolute;left:calc(${score}% - 19px);top:-11px;width:38px;height:38px;border-radius:50%;background:#fff;border:4px solid ${col};box-shadow:0 2px 6px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;font:700 15px Oswald;z-index:2">${score}</div>
+      <div style="position:absolute;left:50%;top:24px;transform:translateX(-50%);font-size:10.5px;white-space:nowrap" class="muted">▲ no change (50)</div></div></div>`;
+}
 function trsV2HTML(V, me){   // the asking team's analysis only
-  const X = V.X, R = V.R, P = V.P, pct = v => (v * 100).toFixed(0) + '%', f2 = v => v.toFixed(2), d2 = v => `<b class="${v > 0.005 ? 'pos' : v < -0.005 ? 'neg' : 'muted'}">${sgn(v, 2)}</b>`;
-  const row = (lab, a, b, fmt, dfmt) => `<tr><td>${lab}</td><td class="num">${fmt(a)}</td><td class="num">${fmt(b)}</td><td class="num">${dfmt(b - a)}</td></tr>`;
-  const sideT = `<table class="tbl" style="margin-top:6px"><thead><tr><th>${esc(tc(me))}</th><th class="num">Before</th><th class="num">After</th><th class="num">Δ</th></tr></thead><tbody>
-    ${row('Category wins per matchup · remaining schedule', R.me[0].ew, R.me[1].ew, f2, d2)}
-    ${row('Matchup win chance · remaining schedule', R.me[0].mw, R.me[1].mw, pct, v => `<b class="${v > 0.005 ? 'pos' : v < -0.005 ? 'neg' : 'muted'}">${v >= 0 ? '+' : '−'}${Math.abs(v * 100).toFixed(1)} pts</b>`)}
-    ${P ? row(`Category wins per matchup · playoff weeks ${X.qf}–${X.fw} (vs any team)`, P.me[0].ew, P.me[1].ew, f2, d2) : ''}
-    <tr><td><b>Trade grade</b> <span class="muted" style="font-size:11px">50 + 60 × (75 % remaining schedule + 25 % playoff weeks)</span></td><td></td><td></td><td class="num"><b class="osw" style="font-size:16px">${V.me.score}</b></td></tr></tbody></table>`;
-  const sched = R.wM ? `<div class="muted" style="font-size:12px;margin:4px 0 8px">${esc(tc(me))}${/s$/i.test(tc(me)) ? '’' : '’s'} remaining opponents (weeks ${W.week + 1}–${X.nW}): ${Object.entries(R.wM).sort((a, b) => b[1] - a[1]).map(([o, n]) => `${esc(tc(o))} ×${n}`).join(' · ')}</div>` : '';
-  const catT = `<table class="tbl" style="margin-top:6px"><thead><tr><th>Category</th><th class="num">Win chance before</th><th class="num">After</th><th class="num">Δ</th></tr></thead><tbody>${X.cats.map(c => { const a = R.me[0].pc[c], b = R.me[1].pc[c], d = b - a;
-    return `<tr><td>${esc(c)}</td><td class="num">${pct(a)}</td><td class="num">${pct(b)}</td><td class="num"><b class="${d > 0.005 ? 'pos' : d < -0.005 ? 'neg' : 'muted'}">${d >= 0 ? '+' : '−'}${Math.abs(d * 100).toFixed(1)}</b></td></tr>`; }).join('')}</tbody></table>`;
-  const B = R.bM, notes = [B.add.length ? `${esc(tc(me))} fills the open spot${B.add.length > 1 ? 's' : ''} with free agent ${B.add.map(x => `<b>${esc(x.name)}</b>`).join(', ')}.` : '', B.cut.length ? `${esc(tc(me))} has to drop ${B.cut.map(x => `<b>${esc(x.name)}</b>`).join(', ')} (lowest grade) to make room.` : ''].filter(Boolean);
-  if (V.risk.length) notes.push(`Small sample, no past NHL seasons: ${V.risk.map(n => `<b>${esc(n)}</b>`).join(', ')}, so their rates are discounted (0.70 at 0 games, full value from 10 games).`);
-  return `<div style="margin-top:6px">${sideT}${sched}
-    <div style="margin-top:10px;font-weight:700">Category by category (${esc(tc(me))}, remaining schedule)</div>${catT}
-    ${notes.length ? `<ul style="margin:10px 0 0;padding-left:18px;font-size:13px">${notes.map(n => `<li>${n}</li>`).join('')}</ul>` : ''}
-    <details style="margin-top:8px"><summary style="cursor:pointer;font-weight:700">How the trade grade works</summary><ul style="font-size:12.5px;padding-left:18px;margin:6px 0 0">
+  const X = V.X, R = V.R, P = V.P, cls = (v, e) => v > e ? 'pos' : v < -e ? 'neg' : 'muted';
+  const tile = (label, a, b, d, sub) => `<div class="v2t"><div class="v2l">${label}</div><div class="v2n"><span class="muted">${a}</span><span class="v2a">→</span><b>${b}</b></div><div class="v2d ${d[1]}">${d[0]}</div>${sub ? `<div class="v2s">${sub}</div>` : ''}</div>`;
+  const dW = v => [`${sgn(v, 2)} per matchup`, cls(v, 0.005)], dP = v => [`${v >= 0 ? '+' : '−'}${Math.abs(v * 100).toFixed(1)} pts`, cls(v, 0.0005)];
+  const ew0 = R.me[0].ew, ew1 = R.me[1].ew, mw0 = R.me[0].mw, mw1 = R.me[1].mw;
+  const tiles = `<div class="v2g">${tile('Category wins per matchup', ew0.toFixed(2), ew1.toFixed(2), dW(ew1 - ew0), `remaining schedule · out of ${X.cats.length}`)}
+    ${tile('Matchup win chance', (mw0 * 100).toFixed(0) + '%', (mw1 * 100).toFixed(0) + '%', dP(mw1 - mw0), 'remaining schedule')}
+    ${P ? tile(`Playoff weeks ${X.qf}–${X.fw}`, P.me[0].ew.toFixed(2), P.me[1].ew.toFixed(2), dW(P.me[1].ew - P.me[0].ew), 'category wins per matchup · vs any team') : ''}</div>`;
+  const mx = Math.max(0.05, ...X.cats.map(c => Math.abs(R.me[1].pc[c] - R.me[0].pc[c])));
+  const catRows = X.cats.map(c => { const a = R.me[0].pc[c], b = R.me[1].pc[c], d = b - a, w = Math.min(50, Math.abs(d) / mx * 50);
+    const bar = `<div class="v2bar"><i style="${d >= 0 ? 'left:50%' : `left:${50 - w}%`};width:${w}%;background:${d >= 0 ? 'var(--green,#1d6b4a)' : 'var(--red)'}"></i></div>`;
+    return `<tr${Math.abs(d) < 0.0005 ? ' class="v2z"' : ''}><td class="l"><b>${esc(c)}</b></td><td>${(a * 100).toFixed(0)}%</td><td>${(b * 100).toFixed(0)}%</td><td class="${cls(d, 0.0005)}" style="font-weight:700">${Math.abs(d) < 0.0005 ? '–' : `${d > 0 ? '+' : '−'}${Math.abs(d * 100).toFixed(1)}`}</td><td style="width:34%">${bar}</td></tr>`; }).join('');
+  const catT = `<div class="tw" style="max-width:720px;margin-top:6px"><table class="t" style="font-size:12.5px"><thead><tr><th class="l">CATEGORY</th><th>BEFORE</th><th>AFTER</th><th>Δ PTS</th><th>CHANGE</th></tr></thead><tbody>${catRows}</tbody></table></div>`;
+  const opp = R.wM ? `<div class="v2o"><span class="muted">Remaining opponents · weeks ${W.week + 1}–${X.nW}</span>${Object.entries(R.wM).sort((a, b) => b[1] - a[1] || tc(a[0]).localeCompare(tc(b[0]))).map(([o, n]) => `<span class="v2c">${esc(tc(o))} <b>×${n}</b></span>`).join('')}</div>` : '';
+  const B = R.bM, notes = [B.add.length ? `Open roster spot${B.add.length > 1 ? 's' : ''} filled with free agent ${B.add.map(x => `<b>${esc(x.name)}</b>`).join(', ')}.` : '', B.cut.length ? `To make room, ${B.cut.map(x => `<b>${esc(x.name)}</b>`).join(', ')} (lowest grade) ${B.cut.length > 1 ? 'are' : 'is'} dropped.` : ''].filter(Boolean);
+  if (V.risk.length) notes.push(`Small sample, no past NHL seasons: ${V.risk.map(n => `<b>${esc(n)}</b>`).join(', ')}. Rates discounted until 10 games.`);
+  return `${trsGauge(V.me.score, '0 · strongly against', '100 · must accept', 'trade grade')}
+    <div class="v2h">What changes for ${esc(tc(me))}</div>${tiles}${opp}
+    <div class="v2h">Category win chance <span class="muted" style="font-weight:400;font-size:12px">· average over the remaining schedule</span></div>${catT}
+    ${notes.length ? `<div class="v2h">Assumptions</div><ul class="v2n2">${notes.map(n => `<li>${n}</li>`).join('')}</ul>` : ''}
+    <details style="margin-top:10px"><summary class="muted" style="cursor:pointer;font-size:12.5px;font-weight:700">How the trade grade works</summary><ul style="font-size:12.5px;padding-left:18px;margin:6px 0 0">
       <li><b>The question:</b> how many more categories can you expect to win per weekly matchup, against the teams you actually face?</li>
       <li><b>Projection:</b> every roster is run through the P.A.M forecast model for the rest of the regular season (weeks ${W.week + 1}–${X.nW}) and the playoff weeks (${X.qf}–${X.fw}): expected per-game rates (this season blended with the two past seasons), the real lineup slots filled day by day, the saved NHL schedule, and time missed for injured players (from the roster statuses).</li>
       <li><b>Win chance:</b> each team's totals become a weekly average; for every opponent and every category, win chance = how far apart the two teams are compared with the league's normal week-to-week swing in that category. Tight races move a lot, lopsided ones barely move.</li>
-      <li><b>Opponents:</b> for the rest of the regular season, each opponent counts as many times as you actually play them; the trade partner is judged on their own schedule. Playoff opponents aren't known yet, so the playoff weeks count every team equally.</li>
-      <li><b>Grade:</b> 50 + 60 × the change in expected category wins per matchup (75 % remaining schedule, 25 % playoff weeks). +0.40 ≈ 74, +0.10 ≈ 56, −0.40 ≈ 26. No caps, tiers or rank points.</li>
-      <li><b>Roster size:</b> a freed spot goes to the best free agent of the same kind (5+ games); extra players push out your lowest-graded player of the same kind. The same is done for the other team.</li>
-      <li><b>Risk:</b> players with no past NHL seasons and under 10 games have their rates discounted.</li></ul></details></div>`;
+      <li><b>Opponents:</b> each remaining opponent counts as many times as you play them; the trade partner is judged on their own schedule. Playoff opponents aren't known yet, so the playoff weeks count every team equally.</li>
+      <li><b>Grade:</b> 50 + 60 × the change in expected category wins per matchup (75 % remaining schedule, 25 % playoff weeks). +0.40 ≈ 74 · +0.10 ≈ 56 · −0.40 ≈ 26.</li>
+      <li><b>Roster size:</b> a freed spot goes to the best free agent of the same kind (5+ games); extra players push out the lowest-graded player of the same kind. The same is done for the other team.</li>
+      <li><b>Risk:</b> players with no past NHL seasons and under 10 games have their rates discounted (0.70 at 0 games → full value at 10).</li></ul></details>`;
 }
 function trsScaleHTML(R, me, openCats){
   const [, ic, lab, col] = trsLabel(R.score), P = R.P, f = v => `<b class="${v > 0.05 ? 'pos' : v < -0.05 ? 'neg' : 'muted'}">${sgn(v, 1)}</b>`;
