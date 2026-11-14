@@ -1248,8 +1248,8 @@ function trsRate(team, out, inn, act, repS, cur, safe, drops){ // safe: Safe pag
   const score0 = Math.round(Math.max(0, Math.min(100, 50 + Object.values(P).reduce((x, y) => x + y, 0))));   // old rating (before Nov 14 2026): only a quick pre-filter now
   const R = {score0, P, L, o0: a._overall, o1: b._overall, rk0: a._rank, rk1: b._rank, cats, help, hurt, expGap, safe: !!safe, midUp, midDown, week: wk, n: Object.keys(S0).length};
   // the trade grade (Nov 14 2026): change in expected category wins per matchup (trsV2), computed on first use
-  let V2c; Object.defineProperty(R, 'v2', {get(){ return V2c !== undefined ? V2c : (V2c = trsV2(team, out, inn, drops || [])); }});
-  Object.defineProperty(R, 'score', {get(){ const v = this.v2; return v && v.me ? v.me.score : score0; }});
+  let V2c; Object.defineProperty(R, 'v2', {configurable: true, get(){ return V2c !== undefined ? V2c : (V2c = trsV2(team, out, inn, drops || [])); }});
+  Object.defineProperty(R, 'score', {configurable: true, get(){ const v = this.v2; return v && v.me ? v.me.score : score0; }});
   return R;
 }
 /* ---- Trade grade v2 (preview, Nov 14 2026): change in expected category wins per weekly matchup ----
@@ -1510,7 +1510,7 @@ V.trade.after = () => {
       if (!teamPick && !wirePick && q.length < 2) { lst.hidden = true; return; }
       const own = trOwners(), taken = new Set(s.give.concat(s.get, s.drop||[], s.act||[]));
       let m = trPool().filter(x => (!q || nrm(x.name).includes(nrm(q))) && !taken.has(x.k) && allow(x, side, own));
-      if (teamPick) m.sort((a,b) => (a.kind===b.kind ? b.grade-a.grade : a.kind==='s' ? -1 : 1)); else m = m.slice(0, wirePick && !q ? 25 : 14);
+      if (teamPick) m.sort((a,b) => (a.kind===b.kind ? b.grade-a.grade : a.kind==='s' ? -1 : 1)); else { if (side==='fa') m.sort((a,b)=>b.grade-a.grade); m = m.slice(0, wirePick && !q ? 25 : 14); }
       const hdr = teamPick ? `<div class="muted" style="cursor:default;font-size:11px;letter-spacing:.08em;background:var(--ice)">${esc(tc(side==='get'?s.partner:s.team).toUpperCase())} · ${m.length} PLAYER${m.length===1?'':'S'} AVAILABLE</div>` : wirePick && !q ? `<div class="muted" style="cursor:default;font-size:11px;letter-spacing:.08em;background:var(--ice)">TOP FREE AGENTS · TYPE TO SEARCH ALL</div>` : '';
       lst.innerHTML = hdr + (m.map(x=>{ const o = own.get(x.p); return `<div data-trk="${esc(x.k)}"><b>${esc(x.name)}</b> <span class="muted">${x.team} · ${x.kind==='g'?'Goalie':x.tag} · ${x.kind==='g'?'P.A.M goalie grade':'P.A.M'} ${x.grade.toFixed(1)}${DATA.rosters?` · ${o?esc(tc(o)):'free agent'}`:''}</span></div>`; }).join('') || '<div class="muted">No match</div>'); lst.hidden = false; };
     inp.oninput = show; inp.onfocus = show;
@@ -1588,19 +1588,20 @@ V.safeTrade = () => {
       <div class="trv"><div class="osw" style="font-size:20px;color:var(--navy)">${x.grade.toFixed(1)}</div><div class="muted" style="font-size:11px">value ${v.val.toFixed(1)}</div></div>
       <button class="trx" data-sfrm="${side}|${esc(x.k)}" aria-label="Remove">×</button></div>`; };
   const col = (side, label, list, color) => `<div class="card" style="border-top:4px solid ${color}"><h2>${label}</h2>
-    <div class="ac"><input type="search" id="sf-${side}" placeholder="${side==='fa' ? 'Tap for top free-agent goalies, or type a name…' : side==='act' ? (s.team?`Tap to pick an player in an IR / IR+ spot from ${esc(tc(s.team))}…`:'Pick the team giving first…') : side==='give'||side==='drop' ? (s.team?`Tap to pick from ${esc(tc(s.team))}…`:'Add a skater or goalie…') : (wire?'Tap for top free agents, or type a name…':s.partner?`Tap to pick from ${esc(tc(s.partner))}…`:'Add a skater or goalie…')}" style="width:100%;max-width:none"><div class="list" id="sf-${side}l" hidden></div></div>
-    <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">${list.map(x=>card(x,side)).join('') || `<div class="muted" style="padding:10px 0">${side==='fa'?'No pickup. If the trade leaves you with only 2 goalies, add a free-agent goalie here (the finder suggests one).':side==='act'?'No activation. Add a player moving from an IR / IR+ spot back to the active roster.':side==='give'&&move?'Nobody yet. Add the player you would release to the waiver wire.':side==='drop'?'No drop. Add one if the trade leaves you over the roster limit.':side==='give'&&wire?'Nobody yet. Leave empty if you have an open roster spot, or add the player you would drop.':((side==='give'?s.team:(s.partner&&s.partner!=='WIRE'))?'No players yet. Tap the box above to pick from the roster.':'No players yet. Start typing a name above.')}</div>`}</div></div>`;
-  const modeBtns = seg('sfMode', [['trade','🤝 Trade'],['wire','🆓 Waiver wire pickup'],['drop','🗑️ Drop'],['move','🔁 Drop & activate'],['stream','📡 Streaming']], mode);
+    <div class="ac"><input type="search" id="sf-${side}" placeholder="${side==='fa' ? 'Tap for top free agents, or type a name…' : side==='act' ? (s.team?`Tap to pick an player in an IR / IR+ spot from ${esc(tc(s.team))}…`:'Pick the team giving first…') : side==='give'||side==='drop' ? (s.team?`Tap to pick from ${esc(tc(s.team))}…`:'Add a skater or goalie…') : (wire?'Tap for top free agents, or type a name…':s.partner?`Tap to pick from ${esc(tc(s.partner))}…`:'Add a skater or goalie…')}" style="width:100%;max-width:none"><div class="list" id="sf-${side}l" hidden></div></div>
+    <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">${list.map(x=>card(x,side)).join('') || `<div class="muted" style="padding:10px 0">${side==='fa'?'No pickup. Add any free agent to pick up with this move (if the trade leaves you with only 2 goalies, add a free-agent goalie here).':side==='act'?'No activation. Add a player moving from an IR / IR+ spot back to the active roster.':side==='give'&&move?'Nobody yet. Add the player you would release to the waiver wire.':side==='drop'?'No drop. Add one if the trade leaves you over the roster limit.':side==='give'&&wire?'Nobody yet. Leave empty if you have an open roster spot, or add the player you would drop.':((side==='give'?s.team:(s.partner&&s.partner!=='WIRE'))?'No players yet. Tap the box above to pick from the roster.':'No players yet. Start typing a name above.')}</div>`}</div></div>`;
+  const modeBtns = seg('sfMode', [['trade','🤝 Trade'],['wire','🆓 Waiver wire pickup'],['drop','🗑️ Drop'],['move','🔁 Drop & activate'],['stream','📡 Streaming'],['sugg','🤝 Suggested trades'],['wpick','🆓 Waiver wire pickups']], mode);
   const teamOne = `<label class="lb">Your team <select id="sfteam"><option value="">— Pick a team —</option>${T.map(t=>`<option value="${esc(t)}" ${s.team===t?'selected':''}>${esc(tc(t))}</option>`).join('')}</select></label>`;
   const teamSel = mode!=='trade' ? teamOne : `<label class="lb">Your team <select id="sfteam"><option value="">— Any team —</option>${T.map(t=>`<option value="${esc(t)}" ${s.team===t?'selected':''}>${esc(tc(t))}</option>`).join('')}</select></label>
     <label class="lb">Team receiving <select id="sfpartner"><option value="">— Any team —</option>${T.map(t=>`<option value="${esc(t)}" ${s.partner===t?'selected':''}>${esc(tc(t))}</option>`).join('')}</select></label>`;
+  if (mode==='sugg' || mode==='wpick') return phead('🔒 Safe · Private trade desk', 'Safe', mode==='sugg' ? 'Suggested trades: the best trades for your team that the other team should also accept, graded with the trade grade.' : 'Waiver wire pickups: the best free agents to add, each with the drop that makes room, graded with the trade grade.') + `<div class="card"><div style="margin-bottom:12px">${modeBtns}</div><div class="ctrls">${teamOne}<span class="muted">Uses Week ${W.week} grades.</span></div></div>`;
   if (mode==='stream') return phead('🔒 Safe · Private trade desk', 'Safe', 'Streaming: free-agent pickups for one roster spot, this fantasy week and next, aimed at the categories you are forecast to lose.') + `<div class="card"><div style="margin-bottom:12px">${modeBtns}</div><div class="ctrls">${teamOne}<span class="muted">Uses Week ${W.week} grades, the P.A.M forecast model and the real NHL schedule.</span></div></div>` + strHTML(s.team);
   let out = phead('🔒 Safe · Private trade desk', 'Safe', 'Choose a move: a trade between two teams, a waiver-wire pickup, a drop, or a drop & activate from IR / IR+ spots. Then pick the team(s) and the players. The analysis weighs P.A.M grades, replacement level, goalie roles, trends, category production and the off-night schedule, then gives a recommendation.') +
     `<div class="card"><div style="margin-bottom:12px">${modeBtns}</div><div class="ctrls">${teamSel}<button class="btn ghost" id="sfclear">Clear</button><span class="muted">Uses Week ${W.week} grades${GL?'':' (no goalie data this week)'}.</span></div></div>
     <div class="grid g2">${mode==='drop' ? col('give', `${esc(me)} ${s.team?'drops':'drop'} to the waiver wire`, give, 'var(--red)') : move ? col('give', `${esc(me)} ${s.team?'drops':'drop'} to the waiver wire`, give, 'var(--red)') + col('act', `${esc(me)} ${s.team?'activates':'activate'} from IR / IR+`, act, 'var(--blue)') : col('give', wire ? `${esc(me)} ${s.team?'drops':'drop'}` : `${esc(me)} ${s.team?'gives':'give'}${pt?` to ${esc(pt)}`:''}`, give, 'var(--red)')}${(mode==='drop'||move) ? '' : col('get', wire ? `${esc(me)} ${s.team?'picks':'pick'} up from the waiver wire` : `${esc(me)} ${s.team?'receives':'get'}${pt?` from ${esc(pt)}`:''}`, get, 'var(--blue)')}</div>`;
   if (s.team && s.team===s.partner) return out + `<div class="note red" style="margin-bottom:16px">Team giving and team receiving are the same team. Pick two different teams, or the waiver wire.</div>`;
   if (!wire && !move) out += `<div style="margin-bottom:16px" class="grid g2"><div>${col('drop', `${esc(me)} ${s.team?'drops':'drop'} (roster spot)`, drop, '#8a6d1e')}</div><div>${col('act', `${esc(me)} ${s.team?'activates':'activate'} from IR / IR+ (optional)`, act, '#1d6b4a')}</div></div>
-    <div style="margin-bottom:16px" class="grid g2"><div>${col('fa', `${esc(me)} ${s.team?'picks':'pick'} up a free-agent goalie (optional)`, fa, '#0b6e8a')}</div></div>`;
+    <div style="margin-bottom:16px" class="grid g2"><div>${col('fa', `${esc(me)} ${s.team?'picks':'pick'} up free agents (optional)`, fa, '#0b6e8a')}</div></div>`;
   if (mode!=='trade' && !s.team) return out + `<div class="note red" style="margin-bottom:16px">Pick the team to analyse this ${mode==='wire'?'pickup':mode==='drop'?'drop':'roster move'}.</div>`;
   if (mode==='drop' && !give.length) return out + `<div class="card" style="text-align:center;padding:26px"><div style="font-size:30px">🗑️</div><p class="muted">Add the player you would release to the waiver wire.</p></div>`;
   if (move && !give.length && !act.length) return out + `<div class="card" style="text-align:center;padding:26px"><div style="font-size:30px">🔁</div><p class="muted">Add the player released to the waiver wire and/or the player moving from an IR / IR+ spot back to the active roster.</p></div>`;
@@ -1645,7 +1646,7 @@ V.safeTrade = () => {
   else why.push(wire ? `${esc(me)} ${give.length?`${s.team?'drops':'drop'} <b>${sumG.toFixed(1)}</b> value and`:`${s.team?'uses':'use'} an open roster spot and`} ${s.team?'adds':'add'} <b>${sumT.toFixed(1)}</b> from the waiver wire: a net <b class="${net>=0?'pos':'neg'}">${sgn(net,1)}</b>${give.length?` (${sgn(pct*100,0)}%)`:''}.` : `${esc(me)} ${s.team?'gives':'give'} <b>${sumG.toFixed(1)}</b> value and ${s.team?'gets':'get'} <b>${sumT.toFixed(1)}</b>${pt?` from ${esc(pt)}`:''}: a net <b class="${net>=0?'pos':'neg'}">${sgn(net,1)}</b> (${sgn(pct*100,0)}%).`);
   if (act.length && !move) why.push(`Also activates ${act.map(x=>`<b>${esc(x.name)}</b>`).join(', ')} from IR / IR+ (${actVal.toFixed(1)} value), counted in the net value and the category tables.`);
   if (act.length) act.forEach(x => { const r = rosterRows(s.team).find(r=>r.m===x.p); if (r) why.push(`<b>${esc(x.name)}</b> is currently ${r.st ? r.st : r.slot}: make sure he is healthy before activating him.`); });
-  if (fa.length) why.push(`Also picks up ${fa.map(x=>`<b>${esc(x.name)}</b>`).join(', ')} from the waiver wire (${faVal.toFixed(1)} value) to keep at least 3 goalies; the pickup is counted in the net value, the rating and the category tables.`);
+  if (fa.length) why.push(`Also picks up ${fa.map(x=>`<b>${esc(x.name)}</b>`).join(', ')} from the waiver wire (${faVal.toFixed(1)} value); the pickup is counted in the net value, the rating and the category tables.`);
   if (drop.length) why.push(`Includes dropping ${drop.map(x=>`<b>${esc(x.name)}</b>`).join(', ')} (${dropVal.toFixed(1)} value) to make room; the drop is counted in the net value and the category tables.`);
   { const oN = give.length + drop.length, iN = get.length + act.length + fa.length; if (!move && oN !== iN && !(wire && !give.length)) why.push(oN > iN ? `You send out ${oN} and bring in ${iN}, freeing ${oN-iN} roster spot${oN-iN>1?'s':''} for a replacement-level pickup.` : `You bring in ${iN-oN} more player${iN-oN>1?'s':''} than you send out, so someone else on your roster has to be dropped.`); }
   { const RN = sfRankNums(s.team, (wire||move) ? null : s.partner, (wire||move) ? [] : give, get, (wire||move) ? give.concat(drop) : drop, actX);
@@ -1689,14 +1690,14 @@ V.safeTrade = () => {
 V.safeTrade.after = () => {
   const s = state.sf;
   const inactive = new Set(s.team && DATA.rosters && DATA.rosters.teams[s.team] ? rosterRows(s.team).filter(r => r.m && r.slot.startsWith('IR')).map(r=>r.m) : []);
-  const allow = (x, side, own) => side==='fa' ? (x.kind==='g' && !own.get(x.p)) : side==='act' ? (own.get(x.p)===s.team && inactive.has(x.p)) : trAllowed(x, side==='drop'?'give':side, s, own);
+  const allow = (x, side, own) => side==='fa' ? !own.get(x.p) : side==='act' ? (own.get(x.p)===s.team && inactive.has(x.p)) : trAllowed(x, side==='drop'?'give':side, s, own);
   ['give','get','drop','act','fa'].forEach(side => { const inp = $('#sf-'+side), lst = $('#sf-'+side+'l'); if (!inp) return;
     const teamPick = side==='give'||side==='drop'||side==='act' ? !!s.team : (!!s.partner && s.partner!=='WIRE'), wirePick = (side==='get' && s.partner==='WIRE') || side==='fa';
     const show = () => { const q = inp.value.trim();
       if (!teamPick && !wirePick && q.length < 2) { lst.hidden = true; return; }
       const own = trOwners(), taken = new Set(s.give.concat(s.get, s.drop||[], s.act||[], s.fa||[]));
       let m = trPool().filter(x => (!q || nrm(x.name).includes(nrm(q))) && !taken.has(x.k) && allow(x, side, own));
-      if (teamPick) m.sort((a,b) => (a.kind===b.kind ? b.grade-a.grade : a.kind==='s' ? -1 : 1)); else m = m.slice(0, wirePick && !q ? 25 : 14);
+      if (teamPick) m.sort((a,b) => (a.kind===b.kind ? b.grade-a.grade : a.kind==='s' ? -1 : 1)); else { if (side==='fa') m.sort((a,b)=>b.grade-a.grade); m = m.slice(0, wirePick && !q ? 25 : 14); }
       const hdr = teamPick ? `<div class="muted" style="cursor:default;font-size:11px;letter-spacing:.08em;background:var(--ice)">${esc(tc(side==='get'?s.partner:s.team).toUpperCase())} · ${m.length} PLAYER${m.length===1?'':'S'} AVAILABLE</div>` : wirePick && !q ? `<div class="muted" style="cursor:default;font-size:11px;letter-spacing:.08em;background:var(--ice)">TOP FREE AGENTS · TYPE TO SEARCH ALL</div>` : '';
       lst.innerHTML = hdr + (m.map(x=>{ const o = own.get(x.p); return `<div data-trk="${esc(x.k)}"><b>${esc(x.name)}</b> <span class="muted">${x.team} · ${x.kind==='g'?'Goalie':x.tag} · ${x.kind==='g'?'P.A.M goalie grade':'P.A.M'} ${x.grade.toFixed(1)}${DATA.rosters?` · ${o?esc(tc(o)):'free agent'}`:''}</span></div>`; }).join('') || '<div class="muted">No match</div>'); lst.hidden = false; };
     inp.oninput = show; inp.onfocus = show;
@@ -1705,7 +1706,7 @@ V.safeTrade.after = () => {
     lst.onclick = e => { const d = e.target.closest('[data-trk]'); if (!d) return; (s[side] = s[side] || []).push(d.dataset.trk); render(); setTimeout(()=>{ const el = $('#sf-'+side); if (el) el.focus(); }, 0); };
   });
   const prune = () => { const own = trOwners(), byK = {}; trPool().forEach(x=>byK[x.k]=x);
-    ['give','get','drop','act','fa'].forEach(sd => s[sd] = (s[sd]||[]).filter(k => byK[k] && (sd==='fa' ? (byK[k].kind==='g' && !own.get(byK[k].p)) : sd==='act' ? own.get(byK[k].p)===s.team : trAllowed(byK[k], sd==='drop'?'give':sd, s, own)) && !(sd==='drop' && (s.partner==='WIRE'||s.partner==='MOVE')) && !(sd==='get' && s.partner==='MOVE'))); };
+    ['give','get','drop','act','fa'].forEach(sd => s[sd] = (s[sd]||[]).filter(k => byK[k] && (sd==='fa' ? !own.get(byK[k].p) : sd==='act' ? own.get(byK[k].p)===s.team : trAllowed(byK[k], sd==='drop'?'give':sd, s, own)) && !(sd==='drop' && (s.partner==='WIRE'||s.partner==='MOVE')) && !(sd==='get' && s.partner==='MOVE'))); };
   $('#sfteam').onchange = e => { s.team = e.target.value; prune(); render(); };
   const sp = $('#sfpartner'); if (sp) sp.onchange = e => { s.partner = e.target.value; prune(); render(); };
   { const cl = $('#sfclear'); if (cl) cl.onclick = () => { s.give = []; s.get = []; s.drop = []; s.act = []; s.fa = []; render(); }; }
@@ -1756,8 +1757,37 @@ function sfRosterCheck(team, out, inn, activated){ // out: players leaving; inn:
   return {ok: !bad.length, why: bad.join(', ')};
 }
 
+function tv2Grad(X, team){ // how much one more unit of each weekly category total moves the team's expected category wins (remaining schedule)
+  const k = 'g|' + team; if (X[k]) return X[k]; const base = tv2Base(X, X.CR, X.nReg, 'r'), w = tv2Sched(X, team) || {}, g = {};
+  const opp = Object.keys(base).filter(t => t !== team && (!Object.keys(w).length || w[t])), W0 = opp.reduce((s, t) => s + (w[t] || 1), 0) || 1;
+  X.cats.forEach(c => { let s = 0; opp.forEach(t => { const a = base[team][c], b = base[t][c]; if (a == null || b == null) return; const sg = X.SD[c] * Math.SQRT2, z = (a - b) / sg * (X.lower.has(c) ? -1 : 1);
+    s += (w[t] || 1) / W0 * Math.exp(-z * z / 2) / Math.sqrt(2 * Math.PI) / sg * (X.lower.has(c) ? -1 : 1); }); g[c] = s; });
+  return X[k] = g; }
+function tv2PG(X, grad, x){ // a player's per-game production valued with a team's category gradient (GAA left to the full trade grade)
+  const pe = X._pe || (X._pe = new Map()); let e = pe.get(x.p || x.m); if (!e) { const m = x.p || x.m; e = prosEntry(X.CR, m, x.kind, x.kind === 'g' ? 'G' : '', '', ''); pe.set(m, e); }
+  const M = x.kind === 'g' ? {W: 'W', SV: 'SV'} : {G: 'G', A: 'A', '+/-': 'PM', PPP: 'PPP', SOG: 'SOG', HIT: 'HIT', BLK: 'BLK'};   // shutouts and GAA are too lumpy for a straight line: the full trade grade handles them
+  let v = 0; Object.entries(M).forEach(([c, r]) => { if (grad[c] != null && e.rate[r] != null) v += grad[c] * e.rate[r] * (X.CAL[c] || 1); }); return {v, e}; }
+function tv2Team(X, team, grad){ // lineup-aware screening for one team: weekly value of its best lineup per group (F / D / G), bench filling off-nights
+  const k = 'T|' + team; if (X[k]) return X[k];
+  if (!X._gpw) { X._gpw = {}; X.CR.days.forEach(d => X.CR.games[d].forEach(t => X._gpw[t] = (X._gpw[t] || 0) + 1)); Object.keys(X._gpw).forEach(t => X._gpw[t] /= X.nReg); }
+  const K = {F: (X.CR.SK.C || 0) + (X.CR.SK.LW || 0) + (X.CR.SK.RW || 0), D: X.CR.SK.D || 0, G: X.CR.nG};
+  const memo = new Map(), info = x => { const m = x.p || x.m; let r = memo.get(m); if (!r) { const {v, e} = tv2PG(X, grad, x); r = {m, v, g: (X._gpw[e.nt] || 3.4) * e.avail * (e.outDays >= 60 ? 0 : e.outDays >= 21 ? 0.6 : 1), grp: x.kind === 'g' ? 'G' : (m.pos0 === 'D' ? 'D' : 'F')}; memo.set(m, r); } return r; };
+  const roster = rosterRows(team).filter(r => r.m).map(r => info({m: r.m, kind: r.g ? 'g' : 's'}));
+  const G = {F: [], D: [], G: []}; roster.forEach(r => G[r.grp].push(r)); Object.values(G).forEach(a => a.sort((p, q) => q.v - p.v));
+  const gv = (gk, a) => { let s = 0; for (let i = 0; i < a.length && i < K[gk] + 2; i++) s += a[i].v * a[i].g * (i < K[gk] ? 1 : 0.25); return s; };
+  const G0 = {F: gv('F', G.F), D: gv('D', G.D), G: gv('G', G.G)};
+  const after = (outL, inL) => { let d = 0;   // only the groups the move touches are re-ranked
+    for (const gk of ['F', 'D', 'G']) { let hit = false; const ins = [];
+      for (const x of outL) if (info(x).grp === gk) hit = true;
+      for (const x of inL) { const r = info(x); if (r.grp === gk) { hit = true; ins.push(r); } }
+      if (!hit) continue;
+      const a = G[gk].filter(r => !outL.some(x => x.p === r.m)); for (const r of ins) { let i = 0; while (i < a.length && a[i].v >= r.v) i++; a.splice(i, 0, r); }
+      d += gv(gk, a) - G0[gk]; }
+    return d; };
+  return X[k] = {after, info};
+}
 function sfFind(me, noDrop, relax){
-  const key = [W.week, me, noDrop, !!relax].join('|'), WMIN = relax ? 1 : 2, PLMAX = relax ? 3 : 2; if (SF_CACHE[key]) return SF_CACHE[key];
+  const key = [W.week, me, noDrop, !!relax, !(state.sf && state.sf.noGoal)].join('|'), WMIN = relax ? 1 : 2, PLMAX = relax ? 3 : 2; if (SF_CACHE[key]) return SF_CACHE[key];
   const tw = sfTape(); if (!tw || !DATA.rosters) return SF_CACHE[key] = {err: !tw ? 'No Tale of the Tape data yet, so category ranks can\'t be projected.' : 'No roster data.'};
   const teams = tw.teams, mi = teams.indexOf(me), rep = trRep(), pool = trPool(), byP = new Map(pool.map(x=>[x.p,x]));
   const C = SFCATS.length, base = SFCATS.map(([n]) => { const r = tw.compCats.find(c=>c[0]===n); return teams.map((t,i)=> r ? (n==='GAA' ? Math.abs(parseFloat(r[1][i])) : parseFloat(r[1][i])) : 0); });
@@ -1782,7 +1812,7 @@ function sfFind(me, noDrop, relax){
   const judge = (dMe, dPt, pi) => { // full rank changes (only for survivors)
     const tot = base.map((v,c) => v.map((x,i) => i===mi ? x + dMe[c] : (pi!=null && i===pi) ? x + dPt[c] : x));
     const r1 = sfRanks(tot); return {me: r1.map((v,c)=>r0[c][mi]-v[mi]), pt: pi!=null ? r1.map((v,c)=>r0[c][pi]-v[pi]) : null, newMe: r1.map(v=>v[mi])}; };
-  const myC = combos(elig(me)), myG = gCount(me), trades = [], D = new Float64Array(C), DP = new Float64Array(C);
+  const myG = gCount(me), D = new Float64Array(C), DP = new Float64Array(C);
   const dropPool = rosterRows(me).filter(r => r.m && !r.slot.startsWith('IR') && r.st!=='IR-LT').map(r => byP.get(r.m)).filter(Boolean).sort((a,b)=>a.grade-b.grade);
   const dropInfo = new Map(dropPool.map(x => [x, {val: trVal(x,rep).val, v: vec(x)}]));
   const rowOf = new Map(); Object.keys(DATA.rosters.teams).forEach(t => rosterRows(t).forEach(r => { if (r.m) rowOf.set(r.m, r); }));
@@ -1817,7 +1847,38 @@ function sfFind(me, noDrop, relax){
     if (k === 2) { for (let i=0;i<c8.length;i++) for (let j=i+1;j<c8.length;j++) { const L = [c8[i], c8[j]]; if (okG(L) && ruleOK(A.S.concat(L), inS)) return L; } return null; }
     if (k === 3) { for (let i=0;i<c8.length;i++) for (let j=i+1;j<c8.length;j++) for (let l=j+1;l<c8.length;l++) { const L = [c8[i], c8[j], c8[l]]; if (okG(L) && ruleOK(A.S.concat(L), inS)) return L; } }
     return null; };
-  teams.forEach((pt, pi) => { if (pi===mi || !DATA.rosters.teams[pt]) return; const ptC = combos(elig(pt)).sort((a,b)=>a.val-b.val), ptG = gCount(pt), PV = ptC.map(x=>x.val);
+  // Suggested trades (Nov 14 2026): rules = trade grade 58+ for you and 50+ for them, up to 3 players a side, roster requirements kept.
+  // Screening: a fast linear estimate of the trade grade (each player's weekly production × how much one more unit of each category moves
+  // the team's expected category wins against its remaining schedule), then the full trade grade on the best candidates.
+  const X2 = tv2Ctx(), inclG = !(state.sf && state.sf.noGoal), trades = [];
+  const gradMe = X2 && tv2Grad(X2, me);
+  if (X2 && !relax) teams.forEach((pt, pi) => {   // relaxed mode (ideas) has no separate trade rules any more
+ if (pi===mi || !DATA.rosters.teams[pt]) return; const ptG = gCount(pt), gradPt = tv2Grad(X2, pt);
+    const tMe = tv2Team(X2, me, gradMe), tPt = tv2Team(X2, pt, gradPt);
+    const As = combos(elig(me)).filter(c => inclG || !c.g), Bs = combos(elig(pt)).filter(c => inclG || !c.g).sort((a, b) => a.val - b.val), PV = Bs.map(x => x.val), cand = [];
+    const lb = v => { let l = 0, h = PV.length; while (l < h) { const m = (l + h) >> 1; if (PV[m] < v) l = m + 1; else h = m; } return l; };
+    for (const A of As) { const lo = A.val * 0.75 - 2, hi = A.val / 0.75 + 2;   // search window only: trades far from even value never pass the other team's grade
+      for (let bi = lb(lo); bi < Bs.length && PV[bi] <= hi; bi++) { const B = Bs[bi];
+        if (myG - A.g + B.g < 2 || ptG - B.g + A.g < 2) continue;
+        const dMe = tMe.after(A.S, B.S); if (dMe <= 0.03) continue; const dPt = tPt.after(B.S, A.S); if (dPt < -0.15) continue;
+        cand.push({A, B, dMe, dPt}); } }
+    cand.forEach(c => c.sc = Math.min(c.dMe, c.dPt + 0.12)); cand.sort((a, b) => b.sc - a.sc);   // good for you, and the other team should gain too
+    let kept = 0; for (const c of cand) { if (kept >= 25) break; const {A, B} = c;
+      let k = needK(A, B), fa = [];
+      const gA = RULE ? gAfter(A, B) : 3; if (gA < 2) continue; if (gA === 2) k++;   // 2 goalies left: one more spot for a free-agent goalie
+      if (gA === 2) { const f = faG.find(f => !RULE || ruleOK(A.S, B.S.concat([f.x]))); if (!f) continue; fa = [f]; }
+      let drops = k > 0 ? pickDropsFast(k, A, B) : []; if (!drops) continue;
+      if (RULE && !ruleOK(A.S.concat(drops), B.S.concat(fa.map(f=>f.x)))) { if (k <= 0) continue; const alt = pickDrops(k, A, B, fa.map(f=>f.x)); if (!alt) continue; drops = alt; }
+      let dv = 0; for (let cc=0;cc<C;cc++) { DP[cc] = A.v[cc] - B.v[cc]; D[cc] = -DP[cc]; }
+      for (const x of drops) { const di = dropInfo.get(x); dv += di.val; for (let cc=0;cc<C;cc++) D[cc] -= di.v[cc]; }
+      for (const f of fa) { dv -= f.val; for (let cc=0;cc<C;cc++) D[cc] += f.v[cc]; }
+      const tradeNet = B.val - A.val, ptNet = -tradeNet, myNet = tradeNet - dv; let ptLoss = 0, ptTg = 0;
+      for (let cc=0;cc<C;cc++){ if (!DP[cc]) continue; const pv = base[cc][pi] + DP[cc], mv = base[cc][mi] + D[cc]; const ch = r0[cc][pi] - rankOf(cc, pv, pi, mi, mv); if (ch < 0) ptLoss++; ptTg += ch; }
+      const like = c.dPt >= 0.05 ? 'Very likely' : 'Likely';
+      trades.push({pt, pi, A, B, drops, fa: fa.map(f=>f.x), myNet, tradeNet, ptNet, wg: 0, tg: 0, ptTg, ptLoss, like, score: c.sc}); kept++; } });
+  // second search route (heuristic only, not a listing rule): trades that move category ranks the right way, checked with the same full trade grade
+  const myC = combos(elig(me)).filter(c => inclG || !c.g), oldT = [];
+  if (!relax) teams.forEach((pt, pi) => { if (pi===mi || !DATA.rosters.teams[pt]) return; const ptC = combos(elig(pt)).filter(c => inclG || !c.g).sort((a,b)=>a.val-b.val), ptG = gCount(pt), PV = ptC.map(x=>x.val);
     const lb = v => { let l=0, h=PV.length; while (l<h) { const m=(l+h)>>1; if (PV[m] < v) l=m+1; else h=m; } return l; };
     for (const A of myC) { const lo = A.val - Math.max(2, 0.15*A.val), hi = Math.max(A.val + 2, A.val/0.85);
      for (let bi = lb(lo); bi < ptC.length && PV[bi] <= hi; bi++) { const B = ptC[bi];
@@ -1845,15 +1906,20 @@ function sfFind(me, noDrop, relax){
       if (RULE && !ruleOK(A.S.concat(drops), B.S.concat(fa.map(f=>f.x)))) { if (k <= 0) continue; const alt = pickDrops(k, A, B, fa.map(f=>f.x)); if (!alt) continue; drops = alt;
         dropVal = setD(); if (fa.length && !gOK(D, DP, pi)) continue; const q2 = quick(D, pi, DP); if (!q2) continue; myNet = tradeNet - dropVal; }
       const like = (ptNet >= 0 && ptLoss === 0) || (ptNet >= -0.05*B.val && ptTg > 0) ? 'Very likely' : 'Likely';
-      trades.push({pt, pi, A, B, drops, fa: fa.map(f=>f.x), myNet, tradeNet, ptNet, wg, tg, ptTg, ptLoss, like, score: 3*wg + tg + Math.max(-5, Math.min(5, myNet/4)) + (like==='Very likely'?1:0) + 0.3*ptTg});
+      oldT.push({pt, pi, A, B, drops, fa: fa.map(f=>f.x), myNet, tradeNet, ptNet, wg, tg, ptTg, ptLoss, like, score: 3*wg + tg + Math.max(-5, Math.min(5, myNet/4)) + (like==='Very likely'?1:0) + 0.3*ptTg});
     } } });
-  trades.sort((a,b)=>b.score-a.score);
-  const pick = [], perPt = {}, seen = new Set(), rcur = trRepCur(); let rated = 0, nRated = 0, v2n = 0;
-  const rateT = t => t.R || (t.R = {mine: trsRate(me, t.A.S.concat(t.drops), t.B.S.concat(t.fa||[]), [], rcur.s, true, true, t.drops), theirs: trsRate(t.pt, t.B.S, t.A.S, [], rcur.s, true)});
+  let RCUR = null; const rcurF = () => RCUR || (RCUR = trRepCur()), rcur = rcurF();
+  trades.sort((a,b)=>b.score-a.score); oldT.sort((a,b)=>b.score-a.score);
+  { const mix = [], seenM = new Set(), push = L => L.forEach(x => { const k = x.pt + '|' + x.A.S.map(y=>y.k).sort() + '>' + x.B.S.map(y=>y.k).sort(); if (!seenM.has(k)) { seenM.add(k); mix.push(x); } });
+    const sel = []; for (const x of oldT.slice(0, 600)) { const RT = rateT(x); if (RT.mine && RT.theirs && RT.mine.score0 >= 55 && RT.theirs.score0 >= 45) sel.push(x); if (sel.length >= 130) break; }   // old rating = quick pre-sort only
+    push(sel); push(trades); trades.length = 0; mix.forEach(x => trades.push(x)); }   // rank-route picks first, then the screened ones
+  function rateT(t){ return t.R || (t.R = {mine: trsRate(me, t.A.S.concat(t.drops), t.B.S.concat(t.fa||[]), [], rcurF().s, true, true, t.drops), theirs: trsRate(t.pt, t.B.S, t.A.S, [], rcurF().s, true)}, (() => { const M = t.R.mine; if (M && t.R.theirs) Object.defineProperty(t.R.theirs, 'score', {configurable: true, get(){ const v = M.v2; return v && v.ptS ? v.ptS.score : this.score0; }}); })(), t.R); }   // their grade comes from the same calculation
+  const pick = [], perPt = {}, perR = {}, seen = new Set(); let rated = 0, nRated = 0, v2n = 0;
   for (const t of trades) { const k = t.A.S.map(x=>x.k).sort().join(',')+'>'+t.B.S.map(x=>x.k).sort().join(','); if (seen.has(k)) continue;
     if ((perPt[t.pt]||0) >= 3) continue;
-    if (rated >= 600) break; rated++; const RT = rateT(t); if (!RT.mine || !RT.theirs || RT.mine.score0 < 55 || RT.theirs.score0 < 45 || (v2n++ > 120) || RT.mine.score < 58 || RT.theirs.score < 50) continue; /* old rating = quick pre-filter (best first), at most 120 trades get the full trade grade (80 pickups) */ nRated++; if (t.B.S.concat(t.A.S).some(x => pick.filter(p=>p.B.S.includes(x)||p.A.S.includes(x)).length >= 2)) continue;
-    seen.add(k); perPt[t.pt] = (perPt[t.pt]||0)+1; pick.push(t); if (pick.length >= 20) break; }
+    if (v2n++ >= 220) break; const RT = rateT(t);   /* full grade for the best 14 per team */ if (!RT.mine || !RT.theirs || RT.mine.score < 58 || RT.theirs.score < 50) continue;   /* the rules: trade grade 58+ for you, 50+ for them */
+    nRated++; seen.add(k); perPt[t.pt] = (perPt[t.pt]||0)+1; pick.push(t); if (pick.length >= 20) break; }
+  pick.sort((a, b) => b.R.mine.score - a.R.mine.score || b.R.theirs.score - a.R.theirs.score);
   pick.forEach(t => { const dp = t.A.v.map((x,c)=>x - t.B.v[c]), d = dp.map((x,c) => -x - t.drops.reduce((a,y)=>a+dropInfo.get(y).v[c],0) + (t.fa||[]).reduce((a,y)=>a+SFCATS[c][2](y),0)); t.J = judge(d, dp, t.pi); });
   // waiver wire
   const owned = trOwners(), fas = pool.filter(x => !owned.get(x.p)).map(x=>({x, val: trVal(x,rep).val, v: vec(x)})).sort((a,b)=>b.x.grade-a.x.grade).slice(0,150);
@@ -1894,7 +1960,7 @@ const sgChg = r => r && r.cats ? (r.cats.filter(k => k.r0 !== k.r1).map(k => `<s
 function safeFinder(){
   const s = state.sf, me = s.team;
   const head = `<div class="card" style="border-top:4px solid var(--gold);margin-top:8px"><h2>🔎 Trade & pickup finder</h2>`;
-  if (!me) return head + `<p class="muted">Pick <b>your team</b> in “Team giving” above to see suggested trades and waiver pickups for it.</p></div>`;
+  if (!me) return head + `<p class="muted">Pick <b>your team</b> above to see suggestions for it.</p></div>`;
   const R = sfFind(me, !!s.noDrop); if (R.err) return head + `<p class="muted">${R.err}</p></div>`;
   const cn = SFCATS.map(c=>c[1]);
   const chips = SFCATS.map((c,i)=>`<span class="pill ${R.weak[i]?'st-r':R.strong[i]?'st-g':'st-y'}" style="margin:2px">${c[1]} #${R.myR[i]}</span>`).join('');
@@ -1909,14 +1975,18 @@ function safeFinder(){
     <div class="grid g2" style="gap:10px;margin:8px 0"><div><div class="muted" style="font-size:11px;letter-spacing:.08em">YOU GIVE</div>${t.A.S.map(pl).join('<br>')}</div><div><div class="muted" style="font-size:11px;letter-spacing:.08em">YOU GET</div>${t.B.S.map(pl).join('<br>')}</div></div>${t.drops.length?`<div style="font-size:13px;margin:-2px 0 8px"><span class="muted" style="font-size:11px;letter-spacing:.08em">YOU DROP (roster spot)</span><br>${t.drops.map(pl).join('<br>')}</div>`:''}${(t.fa||[]).length?`<div style="font-size:13px;margin:-2px 0 8px"><span class="muted" style="font-size:11px;letter-spacing:.08em">YOU PICK UP (free-agent goalie, keeps you at 3 goalies)</span><br>${t.fa.map(pl).join('<br>')}</div>`:''}
     <div style="font-size:13px">Your season category ranks (Grades page season table): ${sgChg(t.R && t.R.mine)}</div>
     ${injNote(t)}<div class="muted" style="font-size:12.5px;margin-top:4px">Your value ${sgn(t.myNet,1)}${t.drops.length?` (trade ${sgn(t.tradeNet,1)}, drop${(t.fa||[]).length?' & goalie pickup':''} ${sgn(t.myNet-t.tradeNet,1)})`:''} · their value ${sgn(t.ptNet,1)} · their categories: ${t.ptTg>0?'+'+t.ptTg+' overall':t.ptTg<0?t.ptTg+' overall':'even'}${t.ptLoss?`, ${t.ptLoss} lost`:', none lost'}${t.A.S.length>t.B.S.length?` · they must drop ${t.A.S.length-t.B.S.length} player${t.A.S.length-t.B.S.length>1?'s':''}`:''}</div>
-    <button class="btn ghost" style="margin-top:8px" data-sfload="${i}">Load into the trade desk ↑</button></div>`).join('') || `<p class="muted">${R.nCand ? `The finder found ${R.nCand} trade${R.nCand>1?'s':''} that fit the category rules, but none reaches a trade grade of 58 for you with 50+ for the other team.` : R.weak.some(Boolean)?'No trade found that improves your weak categories without hurting your strong ones and that the other team is likely to accept.':'You have no weak categories (rank 5–8), so there is nothing for these rules to lift.'} See the ideas below.</p>`;
+    <button class="btn ghost" style="margin-top:8px" data-sfload="${i}">Load into the trade desk</button></div>`).join('') || `<p class="muted">No trade reaches a trade grade of 58 for ${esc(tc(me))} with 50+ for the other team right now. See the ideas below.</p>`;
   const wr = R.wires.map((w,i)=>`<div class="rc" style="margin-bottom:10px"><div class="h"><b>${i+1}. Pick up ${esc(w.f.x.name)}</b><span class="pill st-g">${w.f.x.tag} · ${w.f.x.grade.toFixed(1)}</span></div><div style="margin:6px 0 2px">${rPill(w.R, 'Your grade')}</div>
     <div style="margin:6px 0;font-size:13.5px">Add ${pl(w.f.x)}${w.dr?` · drop ${pl(w.dr.x)}`:' · no drop (open roster spot)'}</div>
     <div style="font-size:13px">Your season category ranks (Grades page season table): ${sgChg(w.R)}</div><div class="muted" style="font-size:12.5px;margin-top:4px">Your value ${sgn(w.myNet,1)}</div>
-    <button class="btn ghost" style="margin-top:8px" data-sfwire="${i}">Load into the trade desk ↑</button></div>`).join('') || `<p class="muted">${R.nWCand ? `${R.nWCand} pickup${R.nWCand>1?'s':''} fit the category rules, but none reaches a trade grade of 56 right now.` : 'No free agent improves a category without lowering another or costing you value right now.'}</p>`;
+    <button class="btn ghost" style="margin-top:8px" data-sfwire="${i}">Load into the trade desk</button></div>`).join('') || `<p class="muted">${R.nWCand ? `${R.nWCand} pickup${R.nWCand>1?'s':''} fit the category rules, but none reaches a trade grade of 56 right now.` : 'No free agent improves a category without lowering another or costing you value right now.'}</p>`;
   return head + `<p class="muted" style="margin-top:-4px">For <b>${esc(tc(me))}</b>, using Week ${R.tw.week} Tale of the Tape ranks and Week ${W.week} P.A.M grades. Red = weak (rank 5–8, to improve) · green = strong (rank 1–3, protected).</p>${SAFE_RULES[me]?`<p class="muted" style="margin:-2px 0 6px">🛡️ Roster requirements for ${esc(tc(me))}: every suggestion (trade, pickup, or the drop that goes with it) must leave you, once executed, with at least ${SAFE_RULES[me].C} active C, ${SAFE_RULES[me].W} active wingers combined (with at least ${SAFE_RULES[me].LW} LW and ${SAFE_RULES[me].RW} RW), ${SAFE_RULES[me].D} active D, ${SAFE_RULES[me].G} goalies and ${SAFE_RULES[me].TOT} active players in total. Active = any roster spot except IR / IR+, whatever the player's status. A multi-position player counts toward each position he can play. An injured player you receive only stays out of the count if one of your 3 IR / IR+ spots is free.</p>`:''}<div style="margin:6px 0 4px">${chips}</div></div>
-   <div class="grid g2"><div class="card"><h2>🤝 Suggested trades</h2><p class="muted" style="margin:-4px 0 6px">Only trades with a <b>trade grade of 58 or better for ${esc(tc(me))}</b> and <b>50 or better for the other team</b> are listed, both on the Trade Analysis trade grade (0–100, 50 = no change in expected category wins). Each one shows your grade and the grade and verdict the other team would see if they checked the trade on their side.</p><p class="muted" style="margin-top:0">Up to 3 players per team. When you receive more players than you give, your lowest-graded players are dropped to make room, and that drop is counted in your value and projected ranks. Each one either <b>(A)</b> lifts at least one weak category (rank 5–8) by 2+ ranks, never lowers a strong (1–3) or mid-tier (4) category by more than 1 rank and improves your overall rank, or <b>(B)</b> lifts at least one weak category by 1+ rank, never lowers a strong or mid-tier category at all and improves your overall rank. A higher total P.A.M value is preferred. Fair value both ways (within 15%), and the other team loses ground in no more than 2 categories. ${R.nTrades} trade${R.nTrades===1?'':'s'} passed (of ${R.nCand} that fit the category rules); best ${R.trades.length} shown (max 3 per team).</p>${tr}</div>
-   <div class="card"><h2>🆓 Waiver wire pickups</h2><label class="lb" style="margin:-4px 0 10px"><input type="checkbox" id="sfnodrop" ${s.noDrop?'checked':''}> I have an open roster spot (no drop)</label><p class="muted" style="margin-top:0">Free agents only. ${s.noDrop?'Shown without a drop.':'Each pickup is compared with dropping the worst player on your roster (lowest P.A.M grade, keeping 2 goalies).'} Each one improves at least one category rank, lowers none, never costs you P.A.M value or grade (the free agent grades at least as high as the player dropped), and has a <b>trade grade of 56 or better</b> (expected category wins, same scale as Trade Analysis). ${R.nWires} move${R.nWires===1?'':'s'} passed (of ${R.nWCand}); best ${R.wires.length} shown.</p>${wr}</div></div>
+   <div class="grid g2"><!--SFT0--><div class="card"><h2>🤝 Suggested trades</h2><label class="lb" style="margin:-4px 0 10px"><input type="checkbox" id="sfgoal" ${s.noGoal?'':'checked'}> Include goalies</label><ul class="muted" style="margin:0 0 8px;padding-left:18px;font-size:13px">
+     <li>Only trades with a <b>trade grade of 58 or better for ${esc(tc(me))}</b> and <b>50 or better for the other team</b> are listed.</li>
+     <li>Up to 3 players per team${s.noGoal ? ', skaters only' : ''}.</li>
+     <li>The minimum roster requirements remain: when you receive more players than you give, your lowest-graded players are dropped to make room${SAFE_RULES[me] ? ', and the goalie minimum is kept (with a free-agent goalie when a trade would leave 2)' : ''}.</li></ul>
+     <p class="muted" style="margin-top:0;font-size:12.5px">${R.nCand} candidate trade${R.nCand===1?'':'s'} screened, the best ones graded in full; ${R.nTrades} passed, best ${R.trades.length} shown (max 3 per team).</p>${tr}</div><!--SFT1-->
+   <!--SFW0--><div class="card"><h2>🆓 Waiver wire pickups</h2><label class="lb" style="margin:-4px 0 10px"><input type="checkbox" id="sfnodrop" ${s.noDrop?'checked':''}> I have an open roster spot (no drop)</label><p class="muted" style="margin-top:0">Free agents only. ${s.noDrop?'Shown without a drop.':'Each pickup is compared with dropping the worst player on your roster (lowest P.A.M grade, keeping 2 goalies).'} Each one improves at least one category rank, lowers none, never costs you P.A.M value or grade (the free agent grades at least as high as the player dropped), and has a <b>trade grade of 56 or better</b> (expected category wins, same scale as Trade Analysis). ${R.nWires} move${R.nWires===1?'':'s'} passed (of ${R.nWCand}); best ${R.wires.length} shown.</p>${wr}</div><!--SFW1--></div>
    <p class="muted">Candidates are found from the Tale of the Tape category totals (each player's season totals moved between teams and re-ranked), then graded on the Trade Analysis scale; the category ranks shown are from the Grades page season table, the same basis as the grade. GAA uses each goalie's blended GAA from the Goalies tab: the team's GAA moves by the change in its active goalies' average. Long-term injured (IR-LT) players are left out; players on IR or out (O) are included and flagged. Suggestions are a guide; every one meets your roster requirements above once executed.${SAFE_RULES[me]?` Goalies: a trade never leaves you below ${SAFE_RULES[me].G} goalies, except one that leaves you at 2, which comes with a free-agent goalie pickup (and one extra skater drop for his roster spot). That goalie may not lower any of your goalie categories (Wins, Saves, Shutouts, GAA) by more than 1 rank, nor your overall goalie rank by more than 1, and the drop and pickup are counted in the trade's grade.`:' Every one keeps at least 2 goalies.'}</p>${TVsh.length < 5 ? sfIdeas(me, R) : ''}`;
 }
 
@@ -1931,7 +2001,7 @@ function sfIdeas(me, R){
   const chg = J => SFCATS.map((c,i)=> J.me[i] ? `<span class="${J.me[i]>0?'pos':'neg'}" style="white-space:nowrap">${c[1]} ${R.myR[i]}→${J.newMe[i]}</span>` : '').filter(Boolean).join(' · ');
   const WK = RX.weak || R.weak, noWeak = !R.weak.some(Boolean);
   if (rx.length) ideas.push(`<div class="card"><h2>🔁 Smaller-step trades</h2><p class="muted" style="margin-top:-4px">${noWeak?'You have no weak (5–8) categories, so these target your rank-4 categories instead: one must rise at least 1 rank':'Same rules, but a weak category only has to rise 1 rank'}, and the other team may lose ground in up to 3 categories. Good stepping stones.</p>
-    ${rx.map((t,i)=>`<div class="rc" style="margin-bottom:8px"><div class="h"><b>With ${esc(tc(t.pt))}</b><span class="pill ${t.like==='Very likely'?'st-g':'st-y'}">${t.like.toUpperCase()}</span></div><div style="font-size:13.5px;margin:6px 0">Give ${t.A.S.map(pl).join(', ')} · get ${t.B.S.map(pl).join(', ')}${t.drops.length?` · drop ${t.drops.map(pl).join(', ')}`:''}</div><div style="font-size:13px">Season category ranks: ${sgChg(t.R && t.R.mine)}</div><div class="muted" style="font-size:12.5px">Your value ${sgn(t.myNet,1)}${t.drops.length?` (incl. drop)`:''} · their value ${sgn(t.ptNet,1)}</div><button class="btn ghost" style="margin-top:6px" data-sfrelax="${i}">Load into the trade desk ↑</button></div>`).join('')}</div>`);
+    ${rx.map((t,i)=>`<div class="rc" style="margin-bottom:8px"><div class="h"><b>With ${esc(tc(t.pt))}</b><span class="pill ${t.like==='Very likely'?'st-g':'st-y'}">${t.like.toUpperCase()}</span></div><div style="font-size:13.5px;margin:6px 0">Give ${t.A.S.map(pl).join(', ')} · get ${t.B.S.map(pl).join(', ')}${t.drops.length?` · drop ${t.drops.map(pl).join(', ')}`:''}</div><div style="font-size:13px">Season category ranks: ${sgChg(t.R && t.R.mine)}</div><div class="muted" style="font-size:12.5px">Your value ${sgn(t.myNet,1)}${t.drops.length?` (incl. drop)`:''} · their value ${sgn(t.ptNet,1)}</div><button class="btn ghost" style="margin-top:6px" data-sfrelax="${i}">Load into the trade desk</button></div>`).join('')}</div>`);
   // 2. targets per weak category
   const weakC = SFCATS.map((c,i)=>i).filter(i=>WK[i]);
   if (weakC.length) {
@@ -2125,12 +2195,19 @@ function strHTML(team){
   return `<div class="note navy" style="margin-bottom:16px"><div class="t">How streaming works here</div>One active roster spot is streamed at a time (free agents only; players listed out, suspended, on IR or scratched on the current lines are skipped, and day-to-day players are assumed to miss 2 days): drop one player who is not a top-50 player (season grade, skaters and goalies together), then use up to <b>3 free agents</b> in that spot over the fantasy week, one after another. Each player's expected per-game production (P.A.M forecast) counts only on nights his NHL team plays <i>and</i> a lineup spot is open for him. Suggestions target only the categories you are forecast to lose or tie <i>and</i> can still win (behind by 25% or less). They are rejected if any category you are forecast to win would stop being a win or drop to a lead under 10%, or if your total games played (lineup games filled) would go down. More games played breaks ties between options. Grades are 0–100 against all 8 teams' forecasts for the same days (50 = league average).</div>`
     + WKS.map(part).join('');
 }
-V.safe = () => SAFE_OK ? V.safeTrade() + (state.sfMode === 'stream' ? '' : safeFinder()) : `<div class="card" style="max-width:420px;margin:40px auto;text-align:center;padding:30px 24px;border-top:4px solid var(--gold)">
+function sfFinderPart(part){   // Suggested trades / Waiver wire pickups tabs: one card of the finder each, full width
+  const H = safeFinder(), a = H.indexOf('<!--SFT0-->'); if (a < 0) return H;
+  const cut = (x, y) => { const i = H.indexOf(x), j = H.indexOf(y); return i >= 0 && j > i ? H.slice(i + x.length, j) : ''; };
+  const head = H.slice(0, H.indexOf('<div class="grid g2"><!--SFT0-->')), tail = H.slice(H.indexOf('<!--SFW1--></div>') + '<!--SFW1--></div>'.length);
+  return head + (part === 'sugg' ? cut('<!--SFT0-->', '<!--SFT1-->') : cut('<!--SFW0-->', '<!--SFW1-->')) + tail;
+}
+V.safe = () => SAFE_OK ? V.safeTrade() + (['sugg', 'wpick'].includes(state.sfMode) ? sfFinderPart(state.sfMode) : '') : `<div class="card" style="max-width:420px;margin:40px auto;text-align:center;padding:30px 24px;border-top:4px solid var(--gold)">
   <div style="font-size:40px">🔒</div><h2 style="justify-content:center;margin:6px 0 4px">Safe</h2><p class="muted" style="margin:0 0 16px">This page is locked. Enter the password to continue.</p>
   <form id="safeform" autocomplete="off" style="display:flex;gap:8px;justify-content:center"><input type="password" id="safepw" inputmode="numeric" placeholder="Password" style="max-width:180px;text-align:center;letter-spacing:.3em" aria-label="Password"><button class="btn" type="submit">Unlock</button></form>
   <p id="safeerr" class="neg" style="margin:10px 0 0;min-height:18px;font-size:13px"></p></div>`;
 V.safe.after = () => { if (SAFE_OK) { V.safeTrade.after();
     const nd = $('#sfnodrop'); if (nd) nd.onchange = e => { state.sf.noDrop = e.target.checked; render(); };
+    const ng = $('#sfgoal'); if (ng) ng.onchange = e => { state.sf.noGoal = !e.target.checked; render(); };
     const sl = $('#sflikely'); if (sl) sl.onchange = e => { state.sf.showLikely = e.target.checked; render(); };
     document.querySelectorAll('[data-sfload]').forEach(b => b.onclick = () => { const t = sfFind(state.sf.team, !!state.sf.noDrop).trades[+b.dataset.sfload]; state.sfMode = 'trade'; Object.assign(state.sf, {partner: t.pt, give: t.A.S.map(x=>x.k), get: t.B.S.map(x=>x.k), drop: (t.drops||[]).map(x=>x.k), act: [], fa: (t.fa||[]).map(x=>x.k)}); render(); window.scrollTo({top:0, behavior:'smooth'}); });
     document.querySelectorAll('[data-sfrelax]').forEach(b => b.onclick = () => { const R0 = sfFind(state.sf.team, !!state.sf.noDrop), RX = sfFind(state.sf.team, true, true), rx = RX.trades.filter(t => !R0.trades.some(u => u.A.S.map(x=>x.k).join()===t.A.S.map(x=>x.k).join() && u.B.S.map(x=>x.k).join()===t.B.S.map(x=>x.k).join())).slice(0,5), t = rx[+b.dataset.sfrelax]; state.sfMode = 'trade'; Object.assign(state.sf, {partner: t.pt, give: t.A.S.map(x=>x.k), get: t.B.S.map(x=>x.k), drop: (t.drops||[]).map(x=>x.k), act: [], fa: (t.fa||[]).map(x=>x.k)}); render(); window.scrollTo({top:0, behavior:'smooth'}); });
