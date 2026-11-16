@@ -1428,8 +1428,14 @@ function trsV2(me, out, inn, drops){ // me sends out (incl. drops), receives inn
   const sc = side => { if (!R[side]) return null; const dR = R[side][1].ew - R[side][0].ew, dP = P && P[side] ? P[side][1].ew - P[side][0].ew : dR, d = 0.75 * dR + 0.25 * dP;
     return {dR, dP, d, score: Math.round(Math.max(0, Math.min(100, 50 + 60 * d)))}; };
   const risk = out.concat(inn).filter(x => tv2Risk(X.CR, {m: x.p, kind: x.kind, rate: {}}).risk).map(x => x.name);
-  const V = {X, R, P, pt, me: sc('me'), ptS: sc('pt'), risk}; TV2R.set(key, V); if (TV2R.size > 3000) TV2R.clear(); return V;
+  const V = {X, R, P, pt, who: me, me: sc('me'), ptS: sc('pt'), risk}; TV2R.set(key, V); if (TV2R.size > 3000) TV2R.clear(); return V;
 }
+// Punt mode (Nov 15 2026): the same trade grade counted only over the categories you play for (punted categories ignored)
+const PUNT = ['G', 'SOG', '+/-'];
+function tv2Punt(V){ if (!V || !V.R || !V.who) return null; if (V._pu) return V._pu;
+  const X = V.X, Xp = Object.assign({}, X, {cats: X.cats.filter(c => !PUNT.includes(c))}), dW = w => tv2Wins(Xp, V.who, w.tot1, w.wM).ew - tv2Wins(Xp, V.who, w.tot0, w.wM).ew;
+  const dR = dW(V.R), dP = V.P ? dW(V.P) : dR, d = 0.75 * dR + 0.25 * dP;
+  return V._pu = {dR, dP, d, score: Math.round(Math.max(0, Math.min(100, 50 + 60 * d))), lost: V.me ? V.me.d - d : 0}; }
 function trsGauge(score, left, right, mid){   // 0–100 verdict scale with the score marker (same bands as the verdict labels)
   const col = trsLabel(score)[3], bands = TRS_LABELS.slice().reverse().map(([m, i, l, c], k, A) => { const hi = k < A.length - 1 ? A[k + 1][0] : 101; return `<div title="${esc(l)} (${m}–${hi - 1})" style="flex:${hi - m};background:${c}"></div>`; }).join('');
   return `<div style="margin:6px 0 4px;max-width:720px">
@@ -1877,7 +1883,7 @@ function tv2Team(X, team, grad){ // lineup-aware screening for one team: weekly 
   return X[k] = {after, info};
 }
 function sfFind(me, noDrop, relax){
-  const key = [W.week, me, noDrop, !!relax, !(state.sf && state.sf.noGoal)].join('|'), WMIN = relax ? 1 : 2, PLMAX = relax ? 3 : 2; if (SF_CACHE[key]) return SF_CACHE[key];
+  const punt = !!(state.sf && state.sf.punt), key = [W.week, me, noDrop, !!relax, !(state.sf && state.sf.noGoal), punt].join('|'), WMIN = relax ? 1 : 2, PLMAX = relax ? 3 : 2; if (SF_CACHE[key]) return SF_CACHE[key];
   const tw = sfTape(); if (!tw || !DATA.rosters) return SF_CACHE[key] = {err: !tw ? 'No Tale of the Tape data yet, so category ranks can\'t be projected.' : 'No roster data.'};
   const teams = tw.teams, mi = teams.indexOf(me), rep = trRep(), pool = trPool(), byP = new Map(pool.map(x=>[x.p,x]));
   const C = SFCATS.length, base = SFCATS.map(([n]) => { const r = tw.compCats.find(c=>c[0]===n); return teams.map((t,i)=> r ? (n==='GAA' ? Math.abs(parseFloat(r[1][i])) : parseFloat(r[1][i])) : 0); });
@@ -1942,7 +1948,7 @@ function sfFind(me, noDrop, relax){
   // the team's expected category wins against its remaining schedule), then the full trade grade on the best candidates.
   const sfOK = (m, t) => (m >= 55 && t >= 45) || (m >= 52 && t >= 50);
   const X2 = tv2Ctx(), inclG = !(state.sf && state.sf.noGoal), trades = [];
-  const gradMe = X2 && tv2Grad(X2, me);
+  const gradMe = X2 && (punt ? Object.fromEntries(Object.entries(tv2Grad(X2, me)).map(([c, v]) => [c, PUNT.includes(c) ? 0 : v])) : tv2Grad(X2, me));   // punt mode: punted categories carry no weight for you
   if (X2 && !relax) teams.forEach((pt, pi) => {   // relaxed mode (ideas) has no separate trade rules any more
  if (pi===mi || !DATA.rosters.teams[pt]) return; const ptG = gCount(pt), gradPt = tv2Grad(X2, pt);
     const tMe = tv2Team(X2, me, gradMe), tPt = tv2Team(X2, pt, gradPt);
@@ -2002,15 +2008,15 @@ function sfFind(me, noDrop, relax){
   let RCUR = null; const rcurF = () => RCUR || (RCUR = trRepCur()), rcur = rcurF();
   trades.sort((a,b)=>b.score-a.score); oldT.sort((a,b)=>b.score-a.score);
   { const mix = [], seenM = new Set(), push = L => L.forEach(x => { const k = x.pt + '|' + x.A.S.map(y=>y.k).sort() + '>' + x.B.S.map(y=>y.k).sort(); if (!seenM.has(k)) { seenM.add(k); mix.push(x); } });
-    const sel = []; for (const x of oldT.slice(0, 600)) { const RT = rateT(x); if (RT.mine && RT.theirs && RT.mine.score0 >= 52 && RT.theirs.score0 >= 45) sel.push(x); if (sel.length >= 130) break; }   // old rating = quick pre-sort only
+    const sel = []; for (const x of oldT.slice(0, 600)) { const RT = rateT(x); if (RT.mine && RT.theirs && RT.mine.score0 >= (punt ? 40 : 52) && RT.theirs.score0 >= 45) sel.push(x); if (sel.length >= 130) break; }   // old rating = quick pre-sort only
     push(sel); push(trades); trades.length = 0; mix.forEach(x => trades.push(x)); }   // rank-route picks first, then the screened ones
   function rateT(t){ return t.R || (t.R = {mine: trsRate(me, t.A.S.concat(t.drops), t.B.S.concat(t.fa||[]), [], rcurF().s, true, true, t.drops), theirs: trsRate(t.pt, t.B.S, t.A.S, [], rcurF().s, true)}, (() => { const M = t.R.mine; if (M && t.R.theirs) Object.defineProperty(t.R.theirs, 'score', {configurable: true, get(){ const v = M.v2; return v && v.ptS ? v.ptS.score : this.score0; }}); })(), t.R); }   // their grade comes from the same calculation
   const pick = [], perPt = {}, perR = {}, seen = new Set(); let rated = 0, nRated = 0, v2n = 0;
   for (const t of trades) { const k = t.A.S.map(x=>x.k).sort().join(',')+'>'+t.B.S.map(x=>x.k).sort().join(','); if (seen.has(k)) continue;
     if ((perPt[t.pt]||0) >= 3) continue;
-    if (v2n++ >= 220) break; const RT = rateT(t);   /* full grade for the best 14 per team */ if (!RT.mine || !RT.theirs || !sfOK(RT.mine.score, RT.theirs.score)) continue;   /* the rules: 55+ for you and 45+ for them, or 52+ and 50+ */
+    if (v2n++ >= 220) break; const RT = rateT(t);   /* full grade for the best 14 per team */ if (!RT.mine || !RT.theirs) continue; const myS = punt ? (tv2Punt(RT.mine.v2) || {}).score : RT.mine.score; t.pu = punt ? tv2Punt(RT.mine.v2) : null; if (myS == null || !sfOK(myS, RT.theirs.score)) continue;   /* the rules: 55+ for you and 45+ for them, or 52+ and 50+ */
     nRated++; seen.add(k); perPt[t.pt] = (perPt[t.pt]||0)+1; pick.push(t); if (pick.length >= 20) break; }
-  pick.sort((a, b) => b.R.theirs.score - a.R.theirs.score || b.R.mine.score - a.R.mine.score);   // most acceptable to the other team first
+  pick.sort((a, b) => b.R.theirs.score - a.R.theirs.score || (punt ? b.pu.score - a.pu.score : b.R.mine.score - a.R.mine.score));   // most acceptable to the other team first
   pick.forEach(t => { const dp = t.A.v.map((x,c)=>x - t.B.v[c]), d = dp.map((x,c) => -x - t.drops.reduce((a,y)=>a+dropInfo.get(y).v[c],0) + (t.fa||[]).reduce((a,y)=>a+SFCATS[c][2](y),0)); t.J = judge(d, dp, t.pi); });
   // waiver wire
   const owned = trOwners(), fas = pool.filter(x => !owned.get(x.p)).map(x=>({x, val: trVal(x,rep).val, v: vec(x)})).sort((a,b)=>b.x.grade-a.x.grade).slice(0,150);
@@ -2061,7 +2067,7 @@ function safeFinder(){
   const TV = R.trades.map((t,i)=>({t, i, V: t.R})), TVok = TV, TVsh = TV;
   const rPill = (r, who, theirs) => { if (!r) return ''; const [, ic, lab, col] = trsLabel(r.score); return `<span class="pill" style="font-size:11.5px;background:#fff;border:2px solid ${col};color:var(--ink)">${theirs ? `${who} would see` : who}: <b style="font-family:Oswald;font-size:13px">${r.score}</b> · ${ic} ${esc(lab)}</span>`; };
   const tr = TVsh.map(({t,i,V},n)=>`<div class="rc" style="margin-bottom:10px"><div class="h"><b>${n+1}. With ${esc(tc(t.pt))}</b><span class="pill ${t.like==='Very likely'?'st-g':'st-y'}">${t.like.toUpperCase()} ACCEPTED</span></div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 2px">${rPill(V.mine, 'Your grade')}${rPill(V.theirs, esc(tc(t.pt)), true)}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 2px">${t.pu ? rPill(t.pu, '🎯 Your punt grade') : ''}${rPill(V.mine, t.pu ? 'Your full grade' : 'Your grade')}${rPill(V.theirs, esc(tc(t.pt)), true)}</div>${t.pu ? `<div class="muted" style="font-size:12px;margin:2px 0 4px">Punted categories (${PUNT.join(', ')}): ${t.pu.lost < -0.005 ? `about ${Math.abs(t.pu.lost).toFixed(2)} expected category wins a week given up there, ignored in punt mode` : t.pu.lost > 0.005 ? `+${t.pu.lost.toFixed(2)} expected category wins a week there as a bonus` : 'no change'}.</div>` : ''}
     <div class="muted" style="font-size:12px">${esc(tc(me))}: lineup P.A.M ${V.mine.L?V.mine.L.a0.toFixed(1)+' → '+V.mine.L.a1.toFixed(1):'–'} · season grade ${V.mine.o0.toFixed(1)} → ${V.mine.o1.toFixed(1)} · rank #${V.mine.rk0} → #${V.mine.rk1} &nbsp;|&nbsp; ${esc(tc(t.pt))}: lineup P.A.M ${V.theirs.L?V.theirs.L.a0.toFixed(1)+' → '+V.theirs.L.a1.toFixed(1):'–'} · season grade ${V.theirs.o0.toFixed(1)} → ${V.theirs.o1.toFixed(1)} · rank #${V.theirs.rk0} → #${V.theirs.rk1}</div>
     <div class="grid g2" style="gap:10px;margin:8px 0"><div><div class="muted" style="font-size:11px;letter-spacing:.08em">YOU GIVE</div>${t.A.S.map(pl).join('<br>')}</div><div><div class="muted" style="font-size:11px;letter-spacing:.08em">YOU GET</div>${t.B.S.map(pl).join('<br>')}</div></div>${t.drops.length?`<div style="font-size:13px;margin:-2px 0 8px"><span class="muted" style="font-size:11px;letter-spacing:.08em">YOU DROP (roster spot)</span><br>${t.drops.map(pl).join('<br>')}</div>`:''}${(t.fa||[]).length?`<div style="font-size:13px;margin:-2px 0 8px"><span class="muted" style="font-size:11px;letter-spacing:.08em">YOU PICK UP (free-agent goalie, keeps you at 3 goalies)</span><br>${t.fa.map(pl).join('<br>')}</div>`:''}
     <div style="font-size:13px">Your season category ranks (Grades page season table): ${sgChg(t.R && t.R.mine)}</div>
@@ -2072,8 +2078,8 @@ function safeFinder(){
     <div style="font-size:13px">Your season category ranks (Grades page season table): ${sgChg(w.R)}</div><div class="muted" style="font-size:12.5px;margin-top:4px">Your value ${sgn(w.myNet,1)}</div>
     <button class="btn ghost" style="margin-top:8px" data-sfwire="${i}">Load into the trade desk</button></div>`).join('') || `<p class="muted">${R.nWCand ? `${R.nWCand} pickup${R.nWCand>1?'s':''} fit the category rules, but none reaches a trade grade of 56 right now.` : 'No free agent improves a category without lowering another or costing you value right now.'}</p>`;
   return head + `<p class="muted" style="margin-top:-4px">For <b>${esc(tc(me))}</b>, using Week ${R.tw.week} Tale of the Tape ranks and Week ${W.week} P.A.M grades. Red = weak (rank 5–8, to improve) · green = strong (rank 1–3, protected).</p>${SAFE_RULES[me]?`<p class="muted" style="margin:-2px 0 6px">🛡️ Roster requirements for ${esc(tc(me))}: every suggestion (trade, pickup, or the drop that goes with it) must leave you, once executed, with at least ${SAFE_RULES[me].C} active C, ${SAFE_RULES[me].W} active wingers combined (with at least ${SAFE_RULES[me].LW} LW and ${SAFE_RULES[me].RW} RW), ${SAFE_RULES[me].D} active D, ${SAFE_RULES[me].G} goalies and ${SAFE_RULES[me].TOT} active players in total. Active = any roster spot except IR / IR+, whatever the player's status. A multi-position player counts toward each position he can play. An injured player you receive only stays out of the count if one of your 3 IR / IR+ spots is free.</p>`:''}<div style="margin:6px 0 4px">${chips}</div></div>
-   <div class="grid g2"><!--SFT0--><div class="card"><h2>🤝 Suggested trades</h2><label class="lb" style="margin:-4px 0 10px"><input type="checkbox" id="sfgoal" ${s.noGoal?'':'checked'}> Include goalies</label><ul class="muted" style="margin:0 0 8px;padding-left:18px;font-size:13px">
-     <li>Only trades with a <b>trade grade of 55 or better for ${esc(tc(me))}</b> and <b>45 or better for the other team</b>, or <b>52 or better for ${esc(tc(me))}</b> and <b>50 or better for the other team</b>, are listed, best grade for the other team first.</li>
+   <div class="grid g2"><!--SFT0--><div class="card"><h2>🤝 Suggested trades</h2><div style="display:flex;gap:16px;flex-wrap:wrap;margin:-4px 0 10px"><label class="lb" style="margin:0"><input type="checkbox" id="sfgoal" ${s.noGoal?'':'checked'}> Include goalies</label><label class="lb" style="margin:0" title="Grade your side only on the categories you play for: ${PUNT.join(', ')} are ignored"><input type="checkbox" id="sfpunt" ${s.punt?'checked':''}> 🎯 Punt mode (ignore ${PUNT.join(', ')})</label></div><ul class="muted" style="margin:0 0 8px;padding-left:18px;font-size:13px">
+     ${s.punt ? `<li><b>🎯 Punt mode:</b> your grade counts only ${tv2Ctx() ? tv2Ctx().cats.filter(c => !PUNT.includes(c)).join(', ') : ''}; losses in ${PUNT.join(', ')} are ignored (shown as a note on each trade). The other team\'s grade is the normal one.</li>` : ''}<li>Only trades with a <b>${s.punt ? 'punt grade' : 'trade grade'} of 55 or better for ${esc(tc(me))}</b> and <b>45 or better for the other team</b>, or <b>52 or better for ${esc(tc(me))}</b> and <b>50 or better for the other team</b>, are listed, best grade for the other team first.</li>
      <li>Up to 3 players per team${s.noGoal ? ', skaters only' : ''}.</li>
      <li>The minimum roster requirements remain: when you receive more players than you give, your lowest-graded players are dropped to make room${SAFE_RULES[me] ? ', and the goalie minimum is kept (with a free-agent goalie when a trade would leave 2)' : ''}.</li></ul>
      <p class="muted" style="margin-top:0;font-size:12.5px">${R.nCand} candidate trade${R.nCand===1?'':'s'} screened, the best ones graded in full; ${R.nTrades} passed, best ${R.trades.length} shown (max 3 per team).</p>${tr}</div><!--SFT1-->
@@ -2299,6 +2305,7 @@ V.safe = () => SAFE_OK ? V.safeTrade() + (['sugg', 'wpick'].includes(state.sfMod
 V.safe.after = () => { if (SAFE_OK) { V.safeTrade.after();
     const nd = $('#sfnodrop'); if (nd) nd.onchange = e => { state.sf.noDrop = e.target.checked; render(); };
     const ng = $('#sfgoal'); if (ng) ng.onchange = e => { state.sf.noGoal = !e.target.checked; render(); };
+    const np = $('#sfpunt'); if (np) np.onchange = e => { state.sf.punt = e.target.checked; render(); };
     const sl = $('#sflikely'); if (sl) sl.onchange = e => { state.sf.showLikely = e.target.checked; render(); };
     document.querySelectorAll('[data-sfload]').forEach(b => b.onclick = () => { const t = sfFind(state.sf.team, !!state.sf.noDrop).trades[+b.dataset.sfload]; state.sfMode = 'trade'; Object.assign(state.sf, {partner: t.pt, give: t.A.S.map(x=>x.k), get: t.B.S.map(x=>x.k), drop: (t.drops||[]).map(x=>x.k), act: [], fa: (t.fa||[]).map(x=>x.k)}); render(); window.scrollTo({top:0, behavior:'smooth'}); });
     document.querySelectorAll('[data-sfrelax]').forEach(b => b.onclick = () => { const R0 = sfFind(state.sf.team, !!state.sf.noDrop), RX = sfFind(state.sf.team, true, true), rx = RX.trades.filter(t => !R0.trades.some(u => u.A.S.map(x=>x.k).join()===t.A.S.map(x=>x.k).join() && u.B.S.map(x=>x.k).join()===t.B.S.map(x=>x.k).join())).slice(0,5), t = rx[+b.dataset.sfrelax]; state.sfMode = 'trade'; Object.assign(state.sf, {partner: t.pt, give: t.A.S.map(x=>x.k), get: t.B.S.map(x=>x.k), drop: (t.drops||[]).map(x=>x.k), act: [], fa: (t.fa||[]).map(x=>x.k)}); render(); window.scrollTo({top:0, behavior:'smooth'}); });
@@ -3608,6 +3615,7 @@ The other team's verdict is the same calculation from their side. Trade Analysis
    ${li(['Listed when the trade grade is <b>55+ for The Scalawags and 45+ for the other team</b>, or <b>52+ for The Scalawags and 50+ for the other team</b>.',
      'Up to 3 players per side; roster requirements kept (receiving more players than you give drops your lowest-graded players). <b>Include goalies</b> checkbox: untick for skaters-only trades.',
      'Sorted by the other team\'s grade, then yours. At most 3 per trade partner and 20 in all.',
+     '<b>🎯 Punt mode</b> (checkbox): your side is graded with the same trade-grade formula counted only over the categories you play for; ' + PUNT.join(', ') + ' are ignored (the change there is shown as a note on each trade). The listing rules (55/45 or 52/50) then use this punt grade for you and the normal grade for the other team, and the trade search gives the punted categories no weight. Your full grade is still shown.',
      'Search: candidate trades are screened with a fast estimate of each side\'s change in expected category wins (lineup-aware) and with the category-rank method, then the best ones (up to 220) are graded in full. The screening only decides what gets graded; the listing rules above decide what is shown.'])}
    <h3>🆓 Waiver wire pickups</h3>
    ${li(['Free agents only, each compared with dropping your lowest-graded player (or no drop, if you tick "I have an open roster spot"), keeping the roster requirements.',
