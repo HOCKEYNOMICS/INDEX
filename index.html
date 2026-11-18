@@ -1719,7 +1719,8 @@ function trsScaleHTML(R, me, openCats){
 }
 V.trade = () => {
   if (state.gradeMode === 'exp') { state.gradeMode = 'season'; applyGradeMode(); }  // Trade Analysis runs on current-season grades only
-  const s = state.tr; if (MYTEAM && s.team !== MYTEAM) { s.team = MYTEAM; s.give = []; s.drop = []; s.act = []; if (s.partner === MYTEAM) s.partner = ''; }
+  const s = state.tr; if (MYTEAM && !state.__sfp && s.team !== MYTEAM) {   // the Safe page's partner verdict (state.__sfp) runs this view as the other team
+  s.team = MYTEAM; s.give = []; s.drop = []; s.act = []; if (s.partner === MYTEAM) s.partner = ''; }
   const pool = trPool(), byK = {}; pool.forEach(x=>byK[x.k]=x);
   const mode = state.trMode || 'trade';
   if (mode==='wire') s.partner = 'WIRE'; else if (mode==='drop' || mode==='move') s.partner = 'MOVE'; else if (s.partner==='WIRE' || s.partner==='MOVE') s.partner = '';
