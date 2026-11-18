@@ -454,6 +454,18 @@ table.mx{border-collapse:separate;border-spacing:3px;font-size:12px;background:#
 .ss-glow{animation:ssGl 2s ease-in-out infinite}@keyframes ssGl{0%,100%{opacity:.08}50%{opacity:.22}}
 .ss-pp{animation:ssPP 1s steps(2) infinite}@keyframes ssPP{50%{opacity:.55}}
 @media (prefers-reduced-motion:reduce){.ss-svg *{animation:none!important}}
+.st2{position:relative;border-radius:12px;overflow:hidden;box-shadow:0 0 0 1px var(--ice2)}
+.st2 svg{display:block;width:100%;height:auto}
+.st2l,.st2r{position:absolute;top:6px;font-family:Oswald;line-height:1.15;pointer-events:none}
+.st2l{left:10px}.st2r{right:30px;text-align:right}
+#st2lab{font-size:11px;letter-spacing:.14em;color:#5B6B7F}#st2tot{font-size:22px;color:var(--navy);font-weight:500}#st2rk{font-size:11px;color:#5B6B7F;font-family:Inter,sans-serif}
+#st2md{font-size:13px;letter-spacing:.08em}#st2gr{font-size:11.5px;color:#5B6B7F;font-family:Inter,sans-serif}
+.st2cs{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:10px}
+.st2c{border:1px solid var(--ice2);background:#fff;border-radius:999px;padding:4px 10px 4px 8px;font:600 12px Inter,sans-serif;color:var(--navy);display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.st2c i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.st2c.on{border-color:var(--navy);box-shadow:0 0 0 1px var(--navy)}
+@media (max-width:560px){#st2tot{font-size:17px}#st2md{font-size:11px}.st2r{right:22px}}
+
 .grid>.kpi{box-sizing:border-box}
 .myroster{margin-top:18px}
 
@@ -3646,6 +3658,222 @@ function seasonStatsHTML(t, sg, KWk){
    <div class="ss-sub">Skaters</div><div class="ss-grid">${sk_.map(card).join('')}</div>
    ${gk.length ? `<div class="ss-sub">Goalies</div><div class="ss-grid">${gk.map((c, k) => card(c, k + 20)).join('')}</div>` : ''}</div>`;
 }
+// Season team stats, stage version (Nov 18 2026): one rink, one category at a time; the player skates in and acts it out, with an attitude set by the season grade
+const ST2_S = .66, ST2_B = 44 * .66, ST2_Y = 128 - 61 * .66, ST2_SPD = {elite:.85, good:.95, avg:1.05, low:1.15, cold:1.3}, ST2_LEAN = {elite:-11, good:-7, avg:-3, low:5, cold:10};
+const ST2_TIER = g => g >= 75 ? 'elite' : g >= 58 ? 'good' : g >= 42 ? 'avg' : g >= 25 ? 'low' : 'cold';
+const ST2_MOOD = {elite:['On fire','#1E8E3E'], good:['Rolling','#5B9A2A'], avg:['Steady','#B8860B'], low:['Grinding','#D2691E'], cold:['Ice cold','#3E7CB1']};
+const ST2_GREY = {base:'#B9C2CC', c1:'#8C97A3', c2:'#E5E9EE'};
+let ST2 = null, ST2_RAF = 0;
+function st2HTML(t, sg, KWk){
+  if (!KWk || !sg || sg._overall == null) return '';
+  const S = KWk.season || {}, sk = Object.keys(S).find(k => nrm(k) === nrm(t)), tot = (sk && S[sk]) || {}, SG = KWk.seasonGrades, n = Object.keys(SG).length;
+  const cats = (DATA.keyweeks.cats || []).filter(c => sg[c] != null).map(c => ({c, lab: SS_LAB[c] || c, g: sg[c], tier: ST2_TIER(sg[c]), tot: tot[c], rk: 1 + Object.values(SG).filter(r => r[c] != null && r[c] > sg[c]).length}));
+  if (!cats.length) return '';
+  ST2 = {K: TEAM_KIT[nrm(t)] || {base:'#0B1F3A', c1:'#C8102E', c2:'#D4A62A'}, cats, n, cur: cats.slice().sort((a, b) => b.g - a.g)[0].c};
+  const chip = x => `<button class="st2c" data-st2="${esc(x.c)}"><i style="background:${gHue(x.g)}"></i>${esc(x.c)}</button>`;
+  return `<div class="card ss-wrap"><h2 style="margin:0 0 2px">Season team stats</h2><p class="muted" style="font-size:12.5px;margin:0 0 10px">Pick a category: your player acts it out, and his attitude follows your season grade (0–100, 50 = league average). Totals through week ${W.week}.</p>
+   <div class="st2"><svg id="st2svg" viewBox="0 20 320 120" role="img" aria-label="Season team stats animation"></svg>
+    <div class="st2l"><div id="st2lab"></div><div><b id="st2tot"></b> <span id="st2rk"></span></div></div><div class="st2r"><div id="st2md"></div><div id="st2gr"></div></div></div>
+   <div class="st2cs"><span class="ss-sub" style="margin:0 4px 0 0">Skaters</span>${cats.filter(x => !['W','GAA','SV','SHO'].includes(x.c)).map(chip).join('')}<span class="ss-sub" style="margin:0 4px 0 8px">Goalies</span>${cats.filter(x => ['W','GAA','SV','SHO'].includes(x.c)).map(chip).join('')}</div></div>`;
+}
+function st2Rink(K){
+  return `<rect width="320" height="140" fill="#F7FAFD"/><rect width="320" height="50" fill="#EEF4FA"/><path d="M0 50 H320" stroke="#D5E2EE"/>${[40,80,120,160,200,240,280].map(x => `<path d="M${x} 20 V50" stroke="#DFE8F1" stroke-width=".8"/>`).join('')}
+   <rect y="50" width="320" height="10" fill="#fff"/><rect y="57.5" width="320" height="2.5" fill="${K.c1}" opacity=".85"/><path d="M0 60 H320" stroke="#D5E2EE"/>
+   <path d="M0 128.5 H320" stroke="#E1E9F1"/>
+   <g id="st2glass"><rect x="304" y="0" width="16" height="60" fill="#DCEAF5" stroke="#C5D6E6"/><rect x="304" y="60" width="16" height="70" fill="#fff" stroke="#D5E2EE"/><rect x="304" y="118" width="16" height="10" fill="#F2C94C"/></g>
+   <circle id="st2light" cx="312" cy="54" r="3.4" fill="#7A1E1E"/>`;
+}
+const st2Net = (x, crease) => `${crease ? `<path d="M${x} 128 a26 5 0 0 0 -52 0 z" fill="#CFE3F5"/><path d="M${x - 52} 128 a26 5 0 0 1 52 0" fill="none" stroke="#C8102E" stroke-width=".8"/>` : ''}<g id="st2net" transform="translate(${x} 87) scale(1.7)"><path d="M2 22 L20 22 L22 4 Q11 -2 0 4 Z" fill="#fff" opacity=".75"/><path d="M4 6 L18 6 M3 12 L19.5 12 M2.4 18 L20.4 18 M8 2 L7 22 M14 2 L15 22" stroke="#C9D3DD" stroke-width=".7"/><path d="M0 22 V4 Q11 -2 22 4 V22" fill="none" stroke="#C8102E" stroke-width="2" stroke-linejoin="round"/></g>`;
+const st2Act = (id, inner) => `<g id="st2-${id}">${inner}</g>`;
+const st2Sk = (id, K, flip) => st2Act(id, ssSkater(K, 'st2' + id, 0, 0, '', flip));
+const st2Gk = (id, K, flip) => st2Act(id, flip ? `<g transform="scale(-1 1)">${ssGoalie(K, 0, 0)}</g>` : ssGoalie(K, 0, 0));
+const st2Puck = id => `<ellipse id="st2-${id}" cx="0" cy="0" rx="4" ry="2.1" fill="#111"/>`;
+const st2Txt = (id, s, x, y, sz, col) => `<text id="st2-${id}" x="${x}" y="${y}" text-anchor="middle" font-family="Oswald,sans-serif" font-weight="700" font-size="${sz}" fill="${col}" opacity="0">${s}</text>`;
+// ---- tween helpers
+const st2E = u => u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u), st2Seg = (t, a, b) => st2E((t - a) / (b - a)), st2L = (a, b, u) => a + (b - a) * u;
+function st2Ctx(svg){
+  const st = {}, el = id => svg.querySelector('#st2-' + id);
+  const C = {
+    set(id, o){ const e = el(id); if (!e) return; const p = st[id] = Object.assign(st[id] || {x:0, y:ST2_Y, r:0, s:1, o:1}, o);
+      if (e.tagName === 'ellipse' || e.tagName === 'text') e.setAttribute('transform', `translate(${p.x} ${p.y})`); else e.setAttribute('transform', `translate(${p.x} ${p.y}) scale(${ST2_S * p.s}) rotate(${p.r} 0 61)`);
+      e.setAttribute('opacity', p.o); },
+    get: id => st[id] || {},
+    arm(id, a){ const e = el(id) && el(id).querySelector('.ss-arm'); if (e) e.setAttribute('transform', `rotate(${a} 4 7)`); },
+    glove(id, a){ const e = el(id) && el(id).querySelector('.ss-glove'); if (e) e.setAttribute('transform', `rotate(${a} 12 8)`); },
+    blk(id, a){ const e = el(id) && el(id).querySelector('.ss-blk'); if (e) e.setAttribute('transform', `rotate(${a} -12 9)`); },
+    light(on){ const e = svg.querySelector('#st2light'); if (e) e.setAttribute('fill', on ? '#FF3B30' : '#7A1E1E'); },
+    shake(a){ const e = svg.querySelector('#st2glass'); if (e) e.setAttribute('transform', `translate(${a ? (Math.random() - .5) * a : 0} 0)`); },
+    net(u){ const e = svg.querySelector('#st2net'); if (e) { const sx = +(e.dataset.sx || 1); e.setAttribute('transform', `translate(${e.dataset.x || 262} 87) scale(${sx * (1.7 + .16 * Math.sin(u * Math.PI))} 1.7)`); } },
+    txt(id, o, dy){ const e = el(id); if (!e) return; e.setAttribute('opacity', o); e.setAttribute('transform', `translate(0 ${dy || 0})`); },
+    // skate in: x from a to b during [t0,t1], with a stride bob and the tier lean
+    skate(id, t, a, b, t0, t1, lean){ const u = st2Seg(t, t0, t1), mv = t > t0 && t < t1; C.set(id, {x: st2L(a, b, u), y: ST2_Y - (mv ? Math.abs(Math.sin(t * 34)) * 1.6 : 0), r: lean * (mv ? 1 : .6)}); },
+    // puck that rides on a skater's blade
+    carry(pid, sid, flip){ const p = st[sid] || {x:0}; C.set(pid, {x: p.x + (flip ? -ST2_B : ST2_B), y: 127}); },
+    fly(pid, t, t0, t1, x0, y0, x1, y1, arc){ const u = Math.min(1, Math.max(0, (t - t0) / (t1 - t0))); C.set(pid, {x: st2L(x0, x1, u), y: st2L(y0, y1, u) - (arc || 0) * Math.sin(u * Math.PI)}); }
+  };
+  return C;
+}
+// ---- scenes: each returns {svg, f(t, C)}; t runs 0..1, then the last frame holds with an idle
+function st2Scene(c, tier, K){
+  const L0 = ST2_LEAN[tier], top = tier === 'elite' || tier === 'good', ok = tier !== 'low' && tier !== 'cold';
+  const goal = (C, t, t0) => { C.light(t > t0 && t < t0 + .35 && Math.floor(t * 30) % 2 === 0); C.net(st2Seg(t, t0, t0 + .12)); };
+  const cheer = (C, id, t, t0, lv) => { const u = st2Seg(t, t0, t0 + .12); C.arm(id, st2L(C.get(id).arm || -10, lv === 2 ? -128 : -75, u)); if (lv === 2) C.set(id, {y: ST2_Y - 9 * Math.abs(Math.sin(Math.max(0, t - t0) * 9)) * (t > t0 ? 1 : 0), r: -4}); };
+  const slump = (C, id, t, t0, deg) => { const u = st2Seg(t, t0, t0 + .15); C.set(id, {r: st2L(L0, deg, u)}); C.arm(id, st2L(-10, 26, u)); };
+  if (c === 'HIT') {
+    const svg = st2Sk('o', ST2_GREY, true) + st2Puck('p') + st2Sk('k', K) + `<g id="st2-boom" opacity="0" stroke="${K.c1}" stroke-width="2.4" stroke-linecap="round"><path d="M300 70 l-12 -8 M300 82 l-15 0 M300 94 l-12 8"/></g>` + st2Txt('t', tier === 'elite' ? 'BOOM' : tier === 'good' ? 'THUD' : '', 262, 70, 15, K.c1);
+    return {svg, f(t, C){
+      C.carry('p', 'o', true);
+      if (tier === 'cold') { C.set('o', {x: st2L(272, -70, st2Seg(t, .22, .55))}); C.skate('k', t, -40, 289, 0, .52, L0);
+        if (t > .52) { C.set('k', {x: 289 - 6 * st2Seg(t, .56, .7), r: st2L(16, -84, st2Seg(t, .58, .8)), y: ST2_Y - 12 * st2Seg(t, .62, .8)}); C.shake(t < .66 ? 3 : 0); }
+        return; }
+      C.set('o', {x: 272}); C.skate('k', t, -40, 251, 0, .42, L0);
+      const h = st2Seg(t, .42, .5), back = st2Seg(t, .62, .82);
+      if (tier === 'elite') { C.set('o', {x: st2L(272, 292, h), r: st2L(0, 24, h) + st2L(0, -112, back), y: ST2_Y - 12 * back}); C.shake(t > .42 && t < .62 ? 4 : 0); C.txt('boom', t > .42 && t < .7 ? 1 : 0); C.txt('t', t > .44 && t < .9 ? 1 : 0, -6 * st2Seg(t, .44, .9)); if (t > .56) C.set('k', {x: 251 - 40 * st2Seg(t, .56, .7)}); if (t > .7) cheer(C, 'k', t, .7, 2); }
+      else if (tier === 'good') { C.set('o', {x: st2L(272, 290, h) - 5 * back, r: st2L(0, 15, h) - 15 * back}); C.shake(t > .42 && t < .56 ? 2.4 : 0); C.txt('boom', t > .42 && t < .6 ? .7 : 0); C.txt('t', t > .44 && t < .85 ? 1 : 0, -5 * st2Seg(t, .44, .85)); if (t > .66) cheer(C, 'k', t, .66, 1); }
+      else if (tier === 'avg') { C.set('o', {x: st2L(272, 278, h) - 6 * back, r: st2L(0, 7, h) - 7 * back}); C.shake(t > .42 && t < .5 ? .8 : 0); }
+      else { C.set('k', {x: 251 - 18 * st2Seg(t, .42, .56), r: st2L(L0, -12, st2Seg(t, .42, .5)) + st2L(0, 16, st2Seg(t, .56, .8))}); C.set('o', {r: -3 * h + 3 * back}); }
+    }};
+  }
+  if (c === 'G' || c === 'PPP') {
+    const svg = st2Net(262) + st2Gk('g', ST2_GREY, true) + st2Sk('k', K) + st2Puck('p') + (c === 'PPP' ? `<g id="st2-pp"><rect x="12" y="48" width="84" height="15" rx="3" fill="${K.c1}"/><text x="54" y="59" text-anchor="middle" font-family="Oswald,sans-serif" font-weight="700" font-size="10" fill="#fff" letter-spacing=".06em">POWER PLAY</text></g>` : '') + st2Txt('t', tier === 'low' ? 'PING' : tier === 'avg' ? 'SAVE' : ok ? 'GOAL' : '', tier === 'low' ? 262 : tier === 'avg' ? 232 : 232, 62, 15, tier === 'low' || tier === 'avg' ? '#5B6B7F' : K.c1);
+    return {svg, f(t, C){
+      C.set('g', {x: 250}); const sx = c === 'PPP' ? 140 : 166;
+      C.skate('k', t, -40, sx, 0, .38, L0);
+      if (c === 'PPP' && t < .44) C.fly('p', t, .2, .44, -10, 127, sx + ST2_B, 127, 0); else if (t < .5) C.carry('p', 'k');
+      C.arm('k', t < .4 ? -10 : t < .48 ? st2L(-10, 58, st2Seg(t, .4, .48)) : st2L(58, -38, st2Seg(t, .48, .53)));
+      const bx = sx + ST2_B;
+      if (tier === 'elite') { C.fly('p', t, .5, .58, bx, 127, 286, 98, 18); if (t > .58) C.set('p', {o: 0}); goal(C, t, .58); C.txt('t', t > .6 && t < .95 ? 1 : 0, -6 * st2Seg(t, .6, .95)); if (t > .64) cheer(C, 'k', t, .64, 2); }
+      else if (tier === 'good') { C.fly('p', t, .5, .6, bx, 127, 288, 122, 6); if (t > .6) C.set('p', {o: 0}); goal(C, t, .6); C.txt('t', t > .62 && t < .92 ? 1 : 0, -5 * st2Seg(t, .62, .92)); if (t > .66) cheer(C, 'k', t, .66, 1); }
+      else if (tier === 'avg') { C.fly('p', t, .5, .6, bx, 127, 250 - 27 * ST2_S, ST2_Y - 3 * ST2_S, 10); C.glove('g', t > .5 ? st2L(0, -48, st2Seg(t, .5, .58)) : 0); if (t > .6) C.set('p', {o: 0}); C.txt('t', t > .62 && t < .9 ? 1 : 0, -4 * st2Seg(t, .62, .9)); }
+      else if (tier === 'low') { if (t < .6) C.fly('p', t, .5, .6, bx, 127, 263, 92, 10); else C.fly('p', t, .6, .78, 263, 92, 196, 40, 10); if (t > .78) C.set('p', {o: 0}); C.txt('t', t > .6 && t < .85 ? 1 : 0, -6 * st2Seg(t, .6, .85)); if (t > .7) slump(C, 'k', t, .7, 8); }
+      else { if (t >= .5) C.set('p', {x: bx + 26 * st2Seg(t, .5, .8), y: 127}); C.set('k', {r: L0 + (t > .5 ? 8 * Math.sin((t - .5) * 30) * (1 - st2Seg(t, .5, .8)) : 0)}); if (t > .8) slump(C, 'k', t, .8, 13); }
+    }};
+  }
+  if (c === 'A') {
+    const svg = st2Net(262) + st2Gk('g', ST2_GREY, true) + (tier === 'cold' ? st2Sk('o', ST2_GREY, true) : '') + `<g opacity=".92">${st2Sk('m', K)}</g>` + st2Sk('k', K) + st2Puck('p') + st2Txt('t', ok && tier !== 'avg' ? 'GOAL' : tier === 'avg' ? 'SAVE' : '', 232, 60, 15, tier === 'avg' ? '#5B6B7F' : K.c1);
+    return {svg, f(t, C){
+      C.set('g', {x: 250}); C.set('m', {x: 200}); if (tier === 'cold') C.set('o', {x: st2L(170, -70, st2Seg(t, .55, .9))});
+      C.skate('k', t, -40, 84, 0, .34, L0); if (t < .38) C.carry('p', 'k');
+      C.arm('k', t < .36 ? -10 : st2L(14, -24, st2Seg(t, .36, .42)));
+      if (tier === 'cold') { if (t < .55) C.fly('p', t, .4, .47, 84 + ST2_B, 127, 170 - ST2_B, 127, 0); else C.carry('p', 'o', true); if (t > .6) slump(C, 'k', t, .6, 12); return; }
+      if (tier === 'low') { C.fly('p', t, .4, .5, 84 + ST2_B, 127, 202, 127, 0); C.set('m', {r: t > .5 ? 7 * Math.sin((t - .5) * 26) * (1 - st2Seg(t, .5, .75)) : 0}); if (t > .62) slump(C, 'k', t, .62, 8); return; }
+      if (t < .52) C.fly('p', t, .4, .5, 84 + ST2_B, 127, 200 + ST2_B, 127, 0);
+      C.arm('m', t < .5 ? -10 : t < .55 ? st2L(-10, 52, st2Seg(t, .5, .55)) : st2L(52, -38, st2Seg(t, .55, .59)));
+      if (tier === 'avg') { if (t > .58) C.fly('p', t, .58, .66, 200 + ST2_B, 127, 250 - 27 * ST2_S, ST2_Y - 3 * ST2_S, 10); C.glove('g', t > .58 ? st2L(0, -48, st2Seg(t, .58, .64)) : 0); if (t > .66) C.set('p', {o: 0}); C.txt('t', t > .66 && t < .92 ? 1 : 0); return; }
+      if (t > .58) C.fly('p', t, .58, .65, 200 + ST2_B, 127, 287, tier === 'elite' ? 98 : 121, 8); if (t > .65) C.set('p', {o: 0}); goal(C, t, .65); C.txt('t', t > .66 && t < .95 ? 1 : 0, -5 * st2Seg(t, .66, .95));
+      if (t > .7) { cheer(C, 'm', t, .7, tier === 'elite' ? 2 : 1); if (tier === 'elite') cheer(C, 'k', t, .72, 2); else C.arm('k', st2L(-24, -70, st2Seg(t, .72, .8))); }
+    }};
+  }
+  if (c === 'SOG') {
+    const n = {elite:5, good:4, avg:3, low:2, cold:1}[tier];
+    const svg = st2Net(262) + st2Gk('g', ST2_GREY, true) + st2Sk('k', K) + Array.from({length: n}, (_, i) => st2Puck('p' + i)).join('') + `<text id="st2-cnt" x="40" y="78" text-anchor="middle" font-family="Oswald,sans-serif" font-weight="700" font-size="13" fill="${K.c1}"></text>`;
+    return {svg, f(t, C){
+      C.set('g', {x: 250}); C.skate('k', t, -40, 150, 0, .3, L0);
+      let shot = 0;
+      for (let i = 0; i < n; i++) { const t0 = .34 + i * .12, id = 'p' + i;
+        if (t < t0) { C.set(id, {o: i === 0 || t > t0 - .08 ? 1 : 0}); C.carry(id, 'k'); continue; }
+        shot = i + 1; const ph = (t - t0);
+        if (tier === 'cold') { C.fly(id, t, t0 + .04, t0 + .2, 150 + ST2_B, 127, 300, 8, 20); if (t > t0 + .2) C.set(id, {o: 0}); }
+        else { C.fly(id, t, t0 + .04, t0 + .1, 150 + ST2_B, 127, 244, 92 + (i % 3) * 12, 6); if (t > t0 + .1) C.set(id, {o: 0}); }
+        if (ph < .1) C.arm('k', ph < .04 ? st2L(-10, 50, ph / .04) : st2L(50, -34, (ph - .04) / .03));
+      }
+      if (t > .34 + n * .12) C.arm('k', -10);
+      const cnt = document.getElementById('st2-cnt'); if (cnt) cnt.textContent = shot ? (tier === 'cold' ? 'WIDE' : '+' + shot + ' SOG') : '';
+      if (t > .34 + n * .12 + .05) { if (top) cheer(C, 'k', t, .34 + n * .12 + .05, tier === 'elite' ? 2 : 1); else if (!ok) slump(C, 'k', t, .34 + n * .12 + .05, tier === 'cold' ? 13 : 7); }
+    }};
+  }
+  if (c === '+/-') {
+    if (ok) { const svg = st2Net(262) + st2Gk('g', ST2_GREY, true) + `<g opacity=".92">${st2Sk('m', K)}</g>` + st2Sk('k', K) + st2Puck('p') + st2Txt('t', tier === 'avg' ? '±0' : '+1', 150, 44, 18, tier === 'avg' ? '#B8860B' : K.c1);
+      return {svg, f(t, C){
+        C.set('g', {x: 250}); C.set('m', {x: 200}); C.skate('k', t, -40, 130, 0, .38, L0); if (t < .5) C.carry('p', 'm');
+        if (tier === 'avg') { C.txt('t', t > .5 && t < .9 ? 1 : 0, -6 * st2Seg(t, .5, .9)); C.arm('k', st2L(-10, 6, st2Seg(t, .5, .56)) - st2L(0, 16, st2Seg(t, .56, .62))); return; }
+        C.arm('m', t < .42 ? -10 : t < .48 ? st2L(-10, 52, st2Seg(t, .42, .48)) : st2L(52, -38, st2Seg(t, .48, .52)));
+        if (t > .5) C.fly('p', t, .5, .57, 200 + ST2_B, 127, 287, 112, 6); if (t > .57) C.set('p', {o: 0}); goal(C, t, .57);
+        C.txt('t', t > .58 && t < .95 ? 1 : 0, -8 * st2Seg(t, .58, .95)); if (t > .6) { cheer(C, 'k', t, .6, tier === 'elite' ? 2 : 1); cheer(C, 'm', t, .62, 1); }
+      }}; }
+    const svg = st2Net(58, false).replace('translate(58 87) scale(1.7)', 'translate(58 87) scale(-1.7 1.7)') + st2Sk('k', K) + st2Sk('o', ST2_GREY, true) + st2Puck('p') + st2Txt('t', '−1', 150, 44, 18, '#8A94A0');
+    return {svg, f(t, C){
+      C.skate('k', t, -40, 120, 0, .36, L0); C.set('o', {x: st2L(360, 210, st2Seg(t, .1, .42))}); if (t < .48) C.carry('p', 'o', true);
+      C.arm('o', t < .42 ? -10 : t < .48 ? st2L(-10, 52, st2Seg(t, .42, .48)) : st2L(52, -38, st2Seg(t, .48, .52)));
+      if (t > .48) C.fly('p', t, .48, .58, 210 - ST2_B, 127, 32, 116, 6); if (t > .58) C.set('p', {o: 0});
+      C.light(t > .58 && t < .9 && Math.floor(t * 30) % 2 === 0); C.txt('t', t > .6 && t < .95 ? 1 : 0, -6 * st2Seg(t, .6, .95));
+      if (t > .6) slump(C, 'k', t, .6, tier === 'cold' ? 15 : 9); if (t > .58) C.arm('o', st2L(-38, -110, st2Seg(t, .6, .7)));
+    }};
+  }
+  if (c === 'BLK') {
+    const svg = st2Net(262) + st2Sk('s', ST2_GREY) + st2Sk('k', K, true) + st2Puck('p') + st2Txt('t', ok ? 'BLOCKED' : '', 170, 46, 14, K.c1);
+    return {svg, f(t, C){
+      C.set('s', {x: 56}); C.skate('k', t, 360, 176, 0, .4, -L0);
+      C.arm('s', t < .4 ? -10 : t < .5 ? st2L(-10, 58, st2Seg(t, .4, .5)) : st2L(58, -38, st2Seg(t, .5, .55))); if (t < .54) C.carry('p', 's');
+      const d = st2Seg(t, .46, .56);
+      if (tier === 'elite' || tier === 'good') { C.set('k', {r: st2L(-L0 * .6, -78, d), y: ST2_Y + 3 * d});
+        if (t > .54) { if (t < .6) C.fly('p', t, .54, .6, 56 + ST2_B, 127, 150, 124, 0); else if (tier === 'elite') C.fly('p', t, .6, .78, 150, 124, 220, 10, 16); else C.set('p', {x: 150, y: 127}); }
+        if (tier === 'elite' && t > .78) C.set('p', {o: 0}); C.txt('t', t > .6 && t < .92 ? 1 : 0, -5 * st2Seg(t, .6, .92)); if (t > .7) C.arm('k', st2L(-10, -60, st2Seg(t, .72, .82))); }
+      else if (tier === 'avg') { C.set('k', {r: st2L(-L0 * .6, -26, d)}); if (t > .54) { if (t < .6) C.fly('p', t, .54, .6, 56 + ST2_B, 127, 166, 116, 0); else C.fly('p', t, .6, .8, 166, 116, 290, 40, 10); } if (t > .8) C.set('p', {o: 0}); }
+      else { C.set('k', {r: tier === 'cold' ? st2L(-L0 * .6, 22, st2Seg(t, .48, .56)) : st2L(-L0 * .6, -70, st2Seg(t, .58, .68))}); if (tier === 'cold') C.arm('k', st2L(-10, -95, st2Seg(t, .48, .56)));
+        if (t > .54) C.fly('p', t, .54, .68, 56 + ST2_B, 127, 287, 118, 0); if (t > .68) C.set('p', {o: 0}); C.light(t > .68 && t < .95 && Math.floor(t * 30) % 2 === 0); }
+    }};
+  }
+  // goalies: our goalie in front of the crease, grey shooters coming in
+  const plans = {
+    SV:  {elite:['g','p','b','g','p'], good:['g','p','b','g'], avg:['g','p','x'], low:['p','x','g','x'], cold:['x','p','x','x']},
+    GAA: {elite:['p','g','b'], good:['g','b','p'], avg:['g','x','p'], low:['x','p','x'], cold:['x','x','x']},
+    SHO: {elite:['g','p','b','g'], good:['p','g','b'], avg:['p','g'], low:['p','g','x'], cold:['x']},
+    W:   {elite:['g'], good:['p'], avg:['b'], low:['x'], cold:['x','x']}
+  };
+  const plan = (plans[c] || plans.SV)[tier], ga = plan.filter(x => x === 'x').length, endT = .3 + plan.length * .13;
+  const banner = c === 'SHO' ? (ga ? '' : 'SHUTOUT') : c === 'W' ? (ga ? 'L' : 'W') : c === 'GAA' ? '' : '';
+  const svg = st2Net(262, true) + st2Gk('g', K, true) + st2Sk('s', ST2_GREY) + plan.map((_, i) => st2Puck('p' + i)).join('') + `<text id="st2-cnt" x="44" y="78" text-anchor="middle" font-family="Oswald,sans-serif" font-weight="700" font-size="13" fill="#5B6B7F"></text>` + st2Txt('t', banner, 160, 64, banner.length > 1 ? 20 : 26, ga ? '#8A94A0' : K.c1);
+  return {svg, f(t, C){
+    C.skate('s', t, -60, 110, 0, .28, -4); let gk = {glove: 0, blk: 0, r: 0, x: 250}, n = 0, saves = 0;
+    plan.forEach((k, i) => { const t0 = .3 + i * .13, id = 'p' + i;
+      if (t < t0) { C.set(id, {o: i === 0 || t > t0 - .1 ? 1 : 0}); C.carry(id, 's'); return; }
+      n = i + 1; const ph = t - t0; if (ph < .1) C.arm('s', ph < .04 ? st2L(-10, 50, ph / .04) : st2L(50, -34, Math.min(1, (ph - .04) / .03)));
+      const tx = k === 'g' ? [250 - 27 * ST2_S, ST2_Y - 3 * ST2_S] : k === 'p' ? [244, 120] : k === 'b' ? [250 + 24 * ST2_S, ST2_Y + 20 * ST2_S] : [287, 110], u = st2Seg(t, t0 + .05, t0 + .11);
+      if (t < t0 + .11) C.fly(id, t, t0 + .04, t0 + .11, 110 + ST2_B, 127, tx[0], tx[1], k === 'p' ? 2 : 10);
+      else if (k === 'p') C.fly(id, t, t0 + .11, t0 + .2, 244, 120, 200, 127, 4);
+      else if (k === 'b') C.fly(id, t, t0 + .11, t0 + .2, tx[0], tx[1], 300, 14, 6);
+      if (t > t0 + (k === 'p' ? .2 : .11)) C.set(id, {o: 0});
+      const w = st2Seg(t, t0 + .03, t0 + .08) * (1 - st2Seg(t, t0 + .13, t0 + .18));
+      if (k === 'g') gk.glove = Math.min(gk.glove, -55 * w); if (k === 'b') gk.blk = Math.min(gk.blk, -40 * w); if (k === 'p') gk.r = Math.max(gk.r, 10 * w);
+      if (k === 'x') { goal(C, t, t0 + .11); gk.r = Math.min(gk.r, -6 * u); } else if (t > t0 + .1) saves++;
+    });
+    if (t > endT) C.arm('s', -10);
+    const done = st2Seg(t, endT + .04, endT + .16);
+    if (c === 'W' || c === 'SHO') { if (!ga && (tier === 'elite' || tier === 'good')) { gk.glove = -95 * done; gk.blk = -60 * done; C.set('g', {y: ST2_Y - (tier === 'elite' ? 7 : 3) * Math.abs(Math.sin(Math.max(0, t - endT) * 10)) * done}); } else if (ga) gk.r = st2L(0, -12, done); }
+    else if (ga >= 2 || tier === 'cold') gk.r = Math.min(gk.r, st2L(0, -12, done));
+    C.set('g', {x: gk.x, r: gk.r}); C.glove('g', gk.glove); C.blk('g', gk.blk);
+    const cnt = document.getElementById('st2-cnt'); if (cnt) cnt.textContent = n ? (c === 'GAA' ? `GA ${plan.slice(0, n).filter(x => x === 'x').length}` : c === 'SV' ? `SV ${plan.slice(0, n).filter(x => x !== 'x').length}` : '') : '';
+    if (banner) C.txt('t', t > endT + .06 ? 1 : 0, -4 * st2Seg(t, endT + .06, 1));
+  }};
+}
+function st2Play(c){
+  if (!ST2) return; const svg = document.getElementById('st2svg'); if (!svg) return;
+  const x = ST2.cats.find(y => y.c === c) || ST2.cats[0]; ST2.cur = x.c;
+  const sc = st2Scene(x.c, x.tier, ST2.K), dur = 3.2 * ST2_SPD[x.tier] * 1000;
+  svg.innerHTML = st2Rink(ST2.K) + sc.svg + (x.tier === 'elite' ? `<g class="ss-spark" fill="${ST2.K.c2 === '#FFFFFF' ? '#FFD23F' : ST2.K.c2}"><path d="M150 52 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2z"/><path d="M196 46 l1.6 4 4 1.6 -4 1.6 -1.6 4 -1.6 -4 -4 -1.6 4 -1.6z" style="animation-delay:.5s"/></g>` : x.tier === 'cold' ? `<g fill="#D6E8F6"><circle cx="40" cy="132" r="1.6"/><circle cx="120" cy="134" r="1.3"/><circle cx="210" cy="132" r="1.6"/><circle cx="270" cy="135" r="1.2"/></g><g class="ss-zz" fill="#7FA7C9" font-family="Oswald,sans-serif" font-weight="700"><text x="24" y="70" font-size="12">z</text><text x="31" y="60" font-size="10" style="animation-delay:.6s">z</text><text x="37" y="52" font-size="8" style="animation-delay:1.2s">z</text></g>` : '');
+  const net = svg.querySelector('#st2net'); if (net) { const m_ = net.getAttribute('transform').match(/translate\(([\d.]+) [\d.]+\) scale\((-?)/); net.dataset.x = m_ ? m_[1] : 262; net.dataset.sx = m_ && m_[2] ? -1 : 1; }
+  const fmt = v => v == null ? '–' : x.c === 'GAA' ? (+v).toFixed(2) : x.c === '+/-' && v > 0 ? '+' + v : v;
+  $('#st2lab').textContent = (SS_LAB[x.c] || x.c).toUpperCase(); $('#st2tot').textContent = fmt(x.tot); $('#st2rk').textContent = `#${x.rk} of ${ST2.n}`;
+  const m = ST2_MOOD[x.tier]; $('#st2md').textContent = m[0].toUpperCase(); $('#st2md').style.color = m[1]; $('#st2gr').innerHTML = `Season grade <b style="color:${gHue(x.g)}">${x.g.toFixed(0)}</b>`;
+  document.querySelectorAll('[data-st2]').forEach(b => b.classList.toggle('on', b.dataset.st2 === x.c));
+  const C = st2Ctx(svg); cancelAnimationFrame(ST2_RAF); sc.f(0, C);
+  const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches, t0 = performance.now();
+  const step = now => { if (!document.body.contains(svg)) return; const t = reduce ? 1 : Math.min(1, (now - t0) / dur); sc.f(t, C);
+    if (t >= 1) { const k = ['W','GAA','SV','SHO'].includes(x.c) ? 'g' : 'k', p = C.get(k); if (p && p.x != null && !reduce) { const a = (now - t0 - dur) / 1000;
+        if (x.tier === 'elite' || x.tier === 'good') C.set(k, {y: ST2_Y - Math.abs(Math.sin(a * (x.tier === 'elite' ? 6 : 4))) * (x.tier === 'elite' ? 2.4 : 1.2)}); else if (x.tier === 'cold') C.set(k, {x: Math.round(p.x) + Math.sin(a * 60) * .5}); }
+      if (reduce) return; }
+    ST2_RAF = requestAnimationFrame(step); };
+  ST2_RAF = requestAnimationFrame(step);
+}
+window.__ST2 = {scene: (...a) => st2Scene(...a), rink: k => st2Rink(k), ctx: s => st2Ctx(s), st: () => ST2, stop: () => cancelAnimationFrame(ST2_RAF)};
+function st2Init(){
+  if (!ST2 || !document.getElementById('st2svg')) return;
+  document.querySelectorAll('[data-st2]').forEach(b => b.onclick = () => st2Play(b.dataset.st2));
+  const svg = document.getElementById('st2svg');
+  if ('IntersectionObserver' in window) { const io = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) { io.disconnect(); st2Play(ST2.cur); } }, {threshold: .4}); io.observe(svg); st2Play(ST2.cur); cancelAnimationFrame(ST2_RAF); }
+  else st2Play(ST2.cur);
+}
 V.home = () => {
   const t = MYTEAM || T[0], i = idx[t]; state.team = t; state.roster = t;   // My Team links (rink view, report) always open on your own team
   const ordE = k => k + ({1: 'st', 2: 'nd', 3: 'rd'}[k % 10 > 3 || [11,12,13].includes(k % 100) ? 0 : k % 10] || 'th');
@@ -3664,9 +3892,9 @@ V.home = () => {
   const moves = [[scal ? 'safe' : 'trade', '🤝', scal ? 'Find trades' : 'Test a trade', scal ? 'Suggested trades and pickups for you' : 'Grade any trade before you send it'], ['market', '📈', 'Market targets', 'Buy-low and sell-high players'], ['rosters', '🏒', 'Rink view', 'Your lineup on the ice'], ['compare', '🆚', 'Compare players', 'Any two, side by side']];
   const tag = st[0] <= 2 ? 'Setting the pace' : st[0] <= LG_NPO() ? 'In the playoff mix' : 'Chasing the cut line';
   state.homeHead = true; let rep_; try { rep_ = V.teams(); } finally { state.homeHead = false; }
-  return `<div class="dhero" style="background:${K ? K.base : 'var(--navy)'};border-bottom:4px solid ${K ? K.c1 : 'var(--red)'};color:${K && K.txt ? K.txt : '#fff'};margin-bottom:16px">${crest}<div><div class="dk">W.A.M · Scouting report</div><div class="dt">${esc(tc(t))}</div><div class="ds">${st[0] ? ordE(st[0]) + ' · ' : ''}${st[2]} pts${rec ? ` · ${rec[0]}-${rec[2]}-${rec[1]} in categories` : ''} · ${tag} · week ${W.week}</div></div></div><div class="myhome">${rep_}${DATA.rosters && DATA.rosters.teams[t] ? `<div class="myroster"><div class="card" style="padding:12px 16px"><h2 style="margin:0">Roster</h2></div>${rosterTeamHTML(t)}</div>` : ''}${seasonStatsHTML(t, sg, KWk)}</div>`;
+  return `<div class="dhero" style="background:${K ? K.base : 'var(--navy)'};border-bottom:4px solid ${K ? K.c1 : 'var(--red)'};color:${K && K.txt ? K.txt : '#fff'};margin-bottom:16px">${crest}<div><div class="dk">W.A.M · Scouting report</div><div class="dt">${esc(tc(t))}</div><div class="ds">${st[0] ? ordE(st[0]) + ' · ' : ''}${st[2]} pts${rec ? ` · ${rec[0]}-${rec[2]}-${rec[1]} in categories` : ''} · ${tag} · week ${W.week}</div></div></div><div class="myhome">${rep_}${DATA.rosters && DATA.rosters.teams[t] ? `<div class="myroster"><div class="card" style="padding:12px 16px"><h2 style="margin:0">Roster</h2></div>${rosterTeamHTML(t)}</div>` : ''}${st2HTML(t, sg, KWk)}</div>`;
 };
-V.home.after = () => { if (V.teams.after) V.teams.after(); rinkPlay(); };
+V.home.after = () => { if (V.teams.after) V.teams.after(); rinkPlay(); st2Init(); };
 V.tools = () => phead('Tools', 'All tools', '') + `<div class="tiles">${[['trade','⚖️','Trade analysis','Grade any trade, waiver pickup or drop'],['market','📈','Player market','Buy-low and sell-high targets'],['compare','🆚','Compare players','Any two skaters or goalies, side by side']].concat(MYTEAM === SCAL ? [['safe','🔒','Safe','Suggested trades, pickups and streaming · Scalawags only'],['key','🔑','Key','League data and weekly updates · Scalawags only']] : []).map(([h, ic, l, d]) => `<a class="tile" href="#${h}"><span class="dic">${ic}</span><div><b>${l}</b><div class="dsub">${d}</div></div><span class="chev">›</span></a>`).join('')}</div>`;
 V.rules = () => phead('Rules', 'Rules & formulas', 'Every rule, calculation, decision and formula used on this site, in one place. Tap a section to open it, or search.') + `<div class="card" style="padding:12px"><input type="search" id="rsearch" placeholder="Search the rules…" style="max-width:none;width:100%"></div>` + rulesPage().replace(/^<div class="card" style="border-top:4px solid var\(--gold\)">[\s\S]*?<\/div>/, '');
 V.rules.after = () => {
