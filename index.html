@@ -289,6 +289,8 @@ tr.vcut td{border-top:2px dashed var(--red)}
 .lab .labzam{width:110px;height:66px;margin:-34px auto 4px;animation:labzam 9s linear infinite;filter:drop-shadow(0 3px 3px rgba(0,0,0,.45))}.lab .labzam svg{width:100%;height:100%}
 @keyframes labzam{0%{transform:translateX(-46vw)}48%{transform:translateX(46vw)}50%{transform:translateX(46vw) scaleX(-1)}98%{transform:translateX(-46vw) scaleX(-1)}100%{transform:translateX(-46vw)}}
 @media(prefers-reduced-motion:reduce){.lab *{animation:none!important}}
+.rk-sk .lg{transform-origin:0px -12px}.rk-sk.go .l1{animation:rksw .42s ease-in-out infinite}.rk-sk.go .l2{animation:rksw .42s ease-in-out infinite reverse}@keyframes rksw{0%{transform:rotate(30deg)}50%{transform:rotate(-30deg)}100%{transform:rotate(30deg)}}.rk-bob{animation:rkbob 2.4s ease-in-out infinite}@keyframes rkbob{0%,100%{transform:translateY(0)}50%{transform:translateY(-1.5px)}}.rk-pl.click,.rk-seat.click{cursor:pointer}@media(prefers-reduced-motion:reduce){.rk-bob,.rk-sk .lg{animation:none!important}}
+
 .land .pucks{display:flex;justify-content:center;align-items:flex-start;gap:22px;flex-wrap:wrap;margin-top:30px}
 .land .pcol{display:flex;flex-direction:column;align-items:center}
 .land .pucks .puck{margin-top:0;font-size:17px;padding:13px 26px;white-space:nowrap;box-sizing:border-box}
@@ -3658,6 +3660,7 @@ The other team's verdict is the same calculation from their side. Trade Analysis
    <h3>Site notes</h3>
    ${li(['<b>Hidden for now</b>: the Stat Vault, the Fantasy Lab and the NHL schedule page. Their work is kept but not updated, and their data is not shipped with the site.',
      '<b>Jerseys</b>: player cards wear the Hockeynomics jersey (navy, gold and red, moose mascot, "Moose on the loose"). Players owned by a fantasy team with its own kit wear that jersey: The Scalawags (black, red and gold, top-hat cat crest, "Stay classy") Return of the Mac (grey and teal, alien-head crest, "Out of this world") Stormin Mormons (navy and green, storm-cloud crest, "Bring the thunder") Let\'s Do That Hockey (black and pink, frog crest, "Hop to it") Bordeaux Boxers (red and black, boxer-dog crest, "Gloves off") Mighty Emperors (orange and black, crown crest, "All hail") Cat Meme Resurgence (purple and gold, phoenix-cat crest, "Nine lives") and Playing Hotkeys (white, electric blue and red, flaming keycap crest, "Ctrl. Alt. Defeat."). No NHL team colours or logos are used.',
+     '<b>Rink view</b> (Rosters page, one team selected): the team\'s best healthy group skates onto the ice in its colors, with its crest at center ice: the top center, the top two left wings, the top two right wings, the top two defensemen and the top goalie, by P.A.M grade. A player eligible at several spots takes the one where the fewest other candidates are left, and the next best player fills the other. Healthy players who miss the cut sit on the bench (entrance side), sorted by grade. Anyone with an O, DTD, IR, IR-LT or IR+ status, or sitting in an IR / IR+ spot, sits in the infirmary. The number next to each player is his grade (green 70+, gold 60 to 70, orange under 60). Tap a player for his profile; Replay sends them out again. The rink is a picture of the roster by grade: it does not change the lineup set on the fantasy platform.',
      '<b>Names</b>: outside sources and platforms are not named on the site; the second projection model is called "Platform".',
      'Fonts are hosted on the site itself.',
      'Private league site, not commercial. Not affiliated with the NHL, the NHLPA or any fantasy platform; for entertainment only, not for betting.'])}`);
@@ -3956,6 +3959,90 @@ V.rosters = () => {
     <p class="muted" style="margin-top:8px">Teams are ranked by active lineup P.A.M. <b>Avg skater P.A.M</b> = average of every rostered skater (BN, IR and IR+ occupied slots included, regardless of actual player status). <b>Avg goalie P.A.M</b> = average of every rostered goalie's P.A.M goalie grade (BN, IR and IR+ occupied slots included, regardless of actual player status). <b>Active lineup P.A.M</b> = average of every skater and goalie P.A.M, not including skaters and goalies that have a status of O, IR-LT, IR or IR+, and not including skaters or goalies that are occupying an IR or IR+ spot, regardless of actual player status. Ranks reflect the week selected in the week picker.</p></div>`;
   return head + gsw + chips + pendNote + rosterTeamHTML(sel);
 };
+/* ---------- rink view (Rosters page): the best healthy group on the ice, healthy extras on the bench, the hurt in the infirmary ---------- */
+const RINK_SC = {O:'#E24B4A', DTD:'#EF9F27', IR:'#5F5E5A', 'IR+':'#3C3489'};
+const rinkTag = r => { const s = r.st || (r.slot.startsWith('IR') ? r.slot : ''); return s === 'IR-LT' || s === 'IR-NR' ? 'IR' : s; };
+const rinkCol = g => g == null ? '#888780' : g >= 70 ? '#1D9E75' : g >= 60 ? '#BA7517' : '#D85A30';
+const rinkLast = n => { const w = n.split(' '); return w.length > 1 ? w.slice(1).join(' ') : n; };
+function rinkPick(rows){   // top 1 C, 2 LW, 2 RW, 2 D (skaters) and 1 G, by grade; a player eligible at several spots takes the one with the fewest other candidates left
+  const need = {C:1, LW:2, RW:2, D:2}, ice = [], left = rows.filter(r => !r.g).sort((a,b) => (b.m ? b.m.grade : -1) - (a.m ? a.m.grade : -1));
+  left.forEach((r, i) => {
+    const el = r.ypos.split(',').filter(p => need[p] > 0); if (!el.length) return;
+    const rest = left.slice(i + 1), cnt = p => rest.filter(o => o.ypos.split(',').includes(p)).length - need[p];
+    el.sort((a, b) => cnt(a) - cnt(b)); const p = el[0]; need[p]--; ice.push({r, pos: p});
+  });
+  const g = rows.filter(r => r.g).sort((a,b) => (b.m ? b.m.grade : -1) - (a.m ? a.m.grade : -1))[0]; if (g) ice.push({r: g, pos: 'G'});
+  return ice;
+}
+function rinkHTML(team){
+  const K = TEAM_KIT[nrm(team)] || {name: tc(team), base: '#0B1F3A', c1: '#C9A227', c2: '#C8102E', trim: '#C9A227'};
+  const rows = rosterRows(team).filter(r => r.name), hurt = rows.filter(r => rinkTag(r)), ok = rows.filter(r => !rinkTag(r));
+  const lastOf = r => { const l = rinkLast(r.name); return rows.filter(o => rinkLast(o.name) === l).length > 1 ? r.name[0] + '. ' + l : l; };
+  const ice = rinkPick(ok), onIce = new Set(ice.map(x => x.r)), bench = ok.filter(r => !onIce.has(r)).sort((a,b) => (b.m ? b.m.grade : -1) - (a.m ? a.m.grade : -1));
+  const SPOT = {C: [[260,100]], LW: [[190,170],[190,260]], RW: [[330,170],[330,260]], D: [[195,410],[325,410]], G: [[260,576]]}, used = {C:0, LW:0, RW:0, D:0, G:0};
+  const dark = c => { const n = parseInt(c.slice(1), 16); return ((n >> 16) * .299 + ((n >> 8) & 255) * .587 + (n & 255) * .114) < 150; };
+  const jc = K.base, st1 = K.c1, st2 = K.trim, edge = dark(K.base) ? 'none' : '#2C2C2A', helm = dark(K.base) ? K.base : (K.txt || '#1E3FAF');
+  const id = (p, r) => r.m ? (r.g ? `data-gl="${r.m.id}"` : `data-pl="${r.m.id}"`) : '';
+  const skater = `<g class="lg l1"><path d="M0 -12 L-1 -1" stroke="${helm}" stroke-width="3" stroke-linecap="round"/><path d="M-6 0 L5 0" stroke="#5F5E5A" stroke-width="2" stroke-linecap="round"/></g><g class="lg l2"><path d="M0 -12 L1 -1" stroke="#2C2C2A" stroke-width="3" stroke-linecap="round"/><path d="M-5 0 L6 0" stroke="#5F5E5A" stroke-width="2" stroke-linecap="round"/></g><path d="M9 -18 L19 0" stroke="#BA7517" stroke-width="2"/><path d="M18 0 L26 0" stroke="#0E0E10" stroke-width="3" stroke-linecap="round"/><rect x="-5" y="-17" width="10" height="6" rx="2" fill="${helm}"/><path d="M-6 -15 L6 -15 L9 -27 L-2 -30 Z" fill="${jc}" stroke="${edge}" stroke-width=".7"/><path d="M-6 -19 L7 -19" stroke="${st1}" stroke-width="2.5"/><path d="M-6 -17 L7 -17" stroke="${st2}" stroke-width="1"/><path d="M6 -26 L10 -18" stroke="${st1}" stroke-width="3" stroke-linecap="round"/><circle cx="4" cy="-33" r="5" fill="${helm}"/><path d="M6 -34 L9 -34" stroke="${st2}" stroke-width="1.5"/>`;
+  const goalie = `<rect x="-9" y="-14" width="5" height="14" rx="2" fill="#FFFFFF" stroke="#0E0E10"/><rect x="4" y="-14" width="5" height="14" rx="2" fill="#FFFFFF" stroke="#0E0E10"/><path d="M-9 -14 L9 -14 L11 -30 L-11 -30 Z" fill="${jc}" stroke="${edge}" stroke-width=".7"/><path d="M-10 -22 L10 -22" stroke="${st1}" stroke-width="2.5"/><rect x="-17" y="-26" width="7" height="9" rx="2" fill="${st2}"/><circle cx="14" cy="-22" r="5" fill="none" stroke="${st2}" stroke-width="2"/><circle cx="0" cy="-36" r="6" fill="#FFFFFF" stroke="#0E0E10" stroke-width="1.5"/><path d="M-3 -36 L3 -36 M-3 -33 L3 -33" stroke="#0E0E10" stroke-width="1"/>`;
+  const seat = c => `<rect x="-26" y="0" width="52" height="5" rx="2" fill="${c||'#B4B2A9'}"/><rect x="-22" y="5" width="3" height="9" fill="${c||'#888780'}"/><rect x="19" y="5" width="3" height="9" fill="${c||'#888780'}"/>`;
+  const sitter = `<path d="M-4 -1 L10 -1 L10 13" stroke="${helm}" stroke-width="3.5" fill="none" stroke-linecap="round"/><path d="M-9 -2 L5 -2 L3 -18 L-9 -18 Z" fill="${jc}" stroke="${edge}" stroke-width=".7"/><path d="M-9 -10 L4 -10" stroke="${st1}" stroke-width="2.5"/><path d="M-9 -8 L4 -8" stroke="${st2}" stroke-width="1"/><circle cx="-2" cy="-24" r="5.5" fill="${helm}"/><path d="M0 -25 L3.5 -25" stroke="${st2}" stroke-width="1.5"/>`;
+  const hurtFig = `<path d="M-4 -1 L10 -1 L10 13" stroke="${helm}" stroke-width="3.5" fill="none" stroke-linecap="round"/><rect x="6" y="2" width="9" height="6" rx="2" fill="#B5D4F4"/><path d="M-9 -2 L5 -2 L3 -18 L-9 -18 Z" fill="${jc}" stroke="${edge}" stroke-width=".7"/><path d="M-9 -10 L4 -10" stroke="${st1}" stroke-width="2.5"/><circle cx="-2" cy="-24" r="5.5" fill="#F5C4B3"/><path d="M-7.5 -26 L3.5 -26" stroke="#FFFFFF" stroke-width="3"/><path d="M20 -26 L14 13" stroke="#888780" stroke-width="2" stroke-linecap="round"/><path d="M15 -24 L24 -24" stroke="#888780" stroke-width="2" stroke-linecap="round"/>`;
+  const gtxt = r => r.m ? r.m.grade.toFixed(1) : '—';
+  const tagIce = (x, y, r, pos) => { const nm = esc(lastOf(r)); let w = lastOf(r).length * 6.6 + pos.length * 5.6 + 42, fs = 12; if (w > 128) { fs = 12 * 128 / w; w = 128; }
+    return `<g class="rk-lb" style="opacity:0"><rect x="${x - w/2}" y="${y + 6}" width="${w}" height="18" rx="4" fill="#FFFFFF" stroke="#D3D1C7"/><rect x="${x - w/2}" y="${y + 6}" width="28" height="18" rx="4" fill="${rinkCol(r.m && r.m.grade)}"/><text x="${x - w/2 + 14}" y="${y + 19}" text-anchor="middle" style="fill:#FFFFFF;font-size:11px;font-weight:600">${gtxt(r)}</text><text x="${x - w/2 + 33}" y="${y + 19}" style="fill:#2C2C2A;font-size:${fs.toFixed(1)}px;font-weight:600">${nm} <tspan style="fill:#888780;font-size:10px">${pos}</tspan></text></g>`; };
+  const seatItem = (r, y, sc, inj) => { const nm = esc(lastOf(r)), t = inj ? rinkTag(r) : '', bw = inj ? t.length * 7 + 10 : 28, n = lastOf(r).length + 3, fs = Math.min(12, 104 / (n * 0.62));
+    const badge = inj ? `<rect x="14" y="-32" width="${bw}" height="15" rx="3" fill="${RINK_SC[t] || '#5F5E5A'}"/><text x="${14 + bw/2}" y="-21" text-anchor="middle" style="fill:#FFFFFF;font-size:10px;font-weight:600">${esc(t)}</text>` : `<rect x="14" y="-32" width="28" height="15" rx="3" fill="${rinkCol(r.m && r.m.grade)}"/><text x="28" y="-21" text-anchor="middle" style="fill:#FFFFFF;font-size:10px;font-weight:600">${gtxt(r)}</text>`;
+    return `<g class="rk-seat${r.m ? ' click' : ''}" ${id(0, r)} transform="translate(57 ${y}) scale(${sc})" style="opacity:0">${seat()}<g class="${inj ? 'rk-bob' : ''}">${inj ? hurtFig : sitter}</g>${badge}<rect x="-28" y="-36" width="80" height="66" fill="transparent"/><text x="5" y="29" text-anchor="middle" style="fill:#2C2C2A;font-size:${fs.toFixed(1)}px;font-weight:600">${nm} <tspan style="fill:#888780;font-size:9.5px">${r.ypos.split(',')[0]}</tspan></text></g>`; };
+  const col = (L, inj) => { const n = Math.max(L.length, inj ? 4 : 1), top = 96, room = (inj ? 520 : 588) - top, sp = Math.min(80, room / Math.max(1, n - (inj ? 0 : 1)) ), sc = Math.min(1, sp / 76);
+    let s = L.map((r, i) => seatItem(r, top + i * sp, sc, inj)).join('');
+    if (inj) for (let i = L.length; i < n; i++) s += `<g transform="translate(57 ${top + i * sp}) scale(${sc})">${seat('#D3D1C7')}<text x="0" y="-8" text-anchor="middle" style="fill:#B4B2A9;font-size:11px">Empty</text></g>`;
+    if (!L.length && !inj) s = `<text x="57" y="120" text-anchor="middle" style="fill:#B4B2A9;font-size:11px">Nobody</text>`;
+    return s; };
+  const players = ice.map(({r, pos}) => { const [x, y] = SPOT[pos][used[pos]++];
+    return `<g class="rk-pl${r.m ? ' click' : ''}" ${id(0, r)} data-tx="${x}" data-ty="${y}" data-g="${pos === 'G' ? 1 : 0}" transform="translate(128 320) scale(1.2)" style="opacity:0"><g class="rk-sk">${pos === 'G' ? goalie : skater}<rect x="-18" y="-44" width="48" height="50" fill="transparent"/></g></g>`; }).join('');
+  const labels = (() => { const u = {C:0, LW:0, RW:0, D:0, G:0}; return ice.map(({r, pos}) => { const [x, y] = SPOT[pos][u[pos]++]; return tagIce(x, y, r, pos); }).join(''); })();
+  const crest = K.crest ? `<g transform="translate(260 320) scale(1.5) translate(-150 -104)">${K.crest('rk' + nrm(team).replace(/ /g, ''))}</g>` : `<text x="260" y="328" text-anchor="middle" style="fill:#185FA5;font-size:22px;font-weight:700">H</text>`;
+  const hdrCrest = K.crest ? `<svg width="40" height="40" viewBox="125 79 50 50" aria-hidden="true">${K.crest('rh' + nrm(team).replace(/ /g, ''))}</svg>` : '';
+  const legend = [['O','O',16,582],['DTD','DTD',62,582],['IR','IR',16,608],['IR+','IR+',62,608]].map(([k, t, x, y]) => `<circle cx="${x}" cy="${y}" r="5" fill="${RINK_SC[k]}"/><text x="${x + 9}" y="${y + 4}" style="fill:#5F5E5A;font-size:12px">${t}</text>`).join('');
+  const panel = (x, title, fill, band, body) => `<g transform="translate(${x} 4)"><rect x="0" y="0" width="114" height="632" rx="10" fill="#FFFFFF" stroke="#B4B2A9" stroke-width="1.5"/><path d="M0 10 Q0 0 10 0 L104 0 Q114 0 114 10 L114 36 L0 36 Z" fill="${fill}"/><rect x="0" y="34" width="114" height="3" fill="${band}"/>${title}${body}</g>`;
+  return `<div class="card rinkc" style="padding:0;overflow:hidden;max-width:620px;margin:0 auto 16px">
+    <div style="background:${K.base};padding:12px 14px;display:flex;align-items:center;gap:12px;border-bottom:3px solid ${K.c1}">${hdrCrest}<div style="flex:1;min-width:0"><div style="color:${K.txt || '#FFFFFF'};font-size:16px;font-weight:700">${esc(tc(team))}</div><div style="color:${K.trim};font-size:12px">Rink view · ${ice.length} on ice · ${bench.length} on bench · ${hurt.length} hurt</div></div><button class="chip" id="rkplay" style="background:transparent;color:${K.txt || '#FFFFFF'};border-color:${K.trim}">↻ Replay</button></div>
+    <div style="background:#E9EEF2;padding:6px"><svg id="rinksvg" viewBox="0 0 520 640" width="100%" role="img" aria-label="${esc(tc(team))} rink view: the best healthy center, two left wings, two right wings, two defensemen and goalie on the ice, healthy extras on the bench, injured players in the infirmary" style="display:block;font-family:inherit">
+    <rect x="126" y="4" width="268" height="632" rx="70" fill="#FFFFFF" stroke="#2C2C2A" stroke-width="3"/><line x1="126" y1="46" x2="394" y2="46" stroke="#E24B4A" stroke-width="1.5"/><path d="M238 46 A22 22 0 0 0 282 46 Z" fill="#B5D4F4"/>
+    <line x1="126" y1="190" x2="394" y2="190" stroke="#185FA5" stroke-width="8"/><line x1="126" y1="320" x2="394" y2="320" stroke="#E24B4A" stroke-width="8"/><circle cx="260" cy="320" r="46" fill="#FFFFFF" stroke="#185FA5" stroke-width="2"/>${crest}
+    <line x1="126" y1="450" x2="394" y2="450" stroke="#185FA5" stroke-width="8"/><circle cx="190" cy="520" r="30" fill="none" stroke="#E24B4A" stroke-width="1.5"/><circle cx="330" cy="520" r="30" fill="none" stroke="#E24B4A" stroke-width="1.5"/>
+    <line x1="126" y1="594" x2="394" y2="594" stroke="#E24B4A" stroke-width="1.5"/><path d="M236 594 A24 24 0 0 1 284 594 Z" fill="#B5D4F4"/><rect x="247" y="594" width="26" height="10" fill="none" stroke="#E24B4A" stroke-width="2"/><rect x="120" y="290" width="10" height="60" fill="${K.c1}"/>
+    ${panel(4, `<text x="57" y="24" text-anchor="middle" style="fill:${dark(K.base) ? K.trim : (K.txt || '#1E3FAF')};font-size:15px;font-weight:700">Bench</text>`, K.base, K.c1, col(bench, 0))}
+    ${panel(402, `<rect x="10" y="9" width="18" height="18" rx="3" fill="#FFFFFF"/><path d="M19 12.5 L19 23.5 M13.5 18 L24.5 18" stroke="#A32D2D" stroke-width="4" stroke-linecap="round"/><text x="34" y="24" style="fill:#FFFFFF;font-size:14px;font-weight:700">Infirmary</text>`, '#A32D2D', '#A32D2D', col(hurt, 1) + `<rect x="8" y="560" width="98" height="1" fill="#D3D1C7"/>` + legend)}
+    ${labels}${players}</svg></div></div>`;
+}
+function rinkPlay(){
+  const sv = document.getElementById('rinksvg'); if (!sv) return;
+  (sv._t || []).forEach(clearTimeout); sv._t = [];
+  const still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches, S = {x: 128, y: 320}, sc = 1.2;
+  const ease = t => t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2;
+  const seats = sv.querySelectorAll('.rk-seat'), pls = sv.querySelectorAll('.rk-pl'), lbs = sv.querySelectorAll('.rk-lb');
+  seats.forEach((g, i) => { g.style.opacity = 0; sv._t.push(setTimeout(() => { g.style.transition = 'opacity .5s'; g.style.opacity = 1; }, still ? 0 : 100 + i * 60)); });
+  lbs.forEach(l => { l.style.transition = 'opacity .4s'; l.style.opacity = 0; });
+  pls.forEach((g, i) => {
+    const tx = +g.dataset.tx, ty = +g.dataset.ty, gk = g.dataset.g === '1', sk = g.querySelector('.rk-sk'), lb = lbs[i];
+    const face = gk ? 1 : (tx <= 260 ? 1 : -1);
+    if (still) { g.style.opacity = 1; g.setAttribute('transform', `translate(${tx} ${ty}) scale(${face * sc} ${sc})`); if (lb) lb.style.opacity = 1; return; }
+    g.style.opacity = 0; g.setAttribute('transform', `translate(${S.x} ${S.y}) scale(${sc})`); sk.classList.remove('go');
+    const cx = S.x + (tx - S.x) * 0.6, cy = S.y + (ty < S.y ? -50 : 50), dur = 1300 + Math.hypot(tx - S.x, ty - S.y) * 2.2;
+    sv._t.push(setTimeout(() => {
+      g.style.opacity = 1; sk.classList.add('go'); const t0 = performance.now(); let px = S.x;
+      const step = now => { if (!document.body.contains(g)) return; const t = Math.min(1, (now - t0) / dur), e = ease(t);
+        const x = (1-e)*(1-e)*S.x + 2*(1-e)*e*cx + e*e*tx, y = (1-e)*(1-e)*S.y + 2*(1-e)*e*cy + e*e*ty;
+        let dir = x < px - 0.01 ? -1 : 1; px = x; if (t >= 1) dir = face;
+        g.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${(dir * sc).toFixed(2)} ${sc})`);
+        if (t < 1) requestAnimationFrame(step); else { sk.classList.remove('go'); if (lb) lb.style.opacity = 1; } };
+      requestAnimationFrame(step);
+    }, 500 + i * 260));
+  });
+  const b = document.getElementById('rkplay'); if (b) b.onclick = rinkPlay;
+}
 function rosterTeamHTML(sel){
   const R = DATA.rosters, names = Object.keys(R.teams);
   const S = names.map(rosterSummary).sort((a,b)=>b.act-a.act), ark = t => S.findIndex(x=>x.team===t)+1;
@@ -3966,13 +4053,14 @@ function rosterTeamHTML(sel){
   const skr = rows.filter(r=>!r.g), gkr = rows.filter(r=>r.g);
   const kp = (l,v,s) => `<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`;
   return `<div class="grid g4" style="margin-bottom:16px">${kp('Avg skater P.A.M', x.sk.toFixed(1), `#${rk(sel)} of ${S.length} rosters`)}${kp('Avg goalie P.A.M', goalies.length?x.gl.toFixed(1):'—', goalies.length?`#${grk(sel)} of ${S.length} rosters`:'No goalie grades this week')}${kp('Active lineup P.A.M', x.act.toFixed(1), `#${ark(sel)} of ${S.length} rosters · skaters and goalies; excludes O, IR-LT, IR and IR+ statuses and anyone in an IR / IR+ spot`)}${kp('Best skater', x.best?esc(x.best.name):'—', x.best?`${x.best.m.team} · grade ${x.best.m.grade.toFixed(1)} · #${x.best.m.rank}`:'')}</div>
+   ${rinkHTML(sel)}
    <div class="card"><h2>Skaters</h2><div class="tw"><table class="t"><thead><tr><th>SLOT</th><th class="l">PLAYER</th><th>NHL</th><th>FANTASY POS</th><th class="l">P.A.M GRADE</th><th>RANK</th><th>TREND</th><th class="l">DEPLOYMENT</th><th>STATUS</th></tr></thead><tbody>
    ${skr.map(r=>{const p=r.m;return `<tr class="${p?'click':''}" ${p?`data-pl="${p.id}"`:''}><td><b>${r.slot}</b></td><td class="nm stk">${esc(r.name)}</td><td>${r.nhl}</td><td>${r.ypos.replace(/,/g,'/')}</td><td>${p?gradeBar(p.grade):'<span class="muted">No games yet</span>'}</td><td>${p?(p.rank<=3?puck(p.rank):'#'+p.rank):'—'}</td><td>${p&&p.hist?spark(p.hist,64,18,p.trend):''}</td><td class="l" style="white-space:nowrap">${p?depTags(p):''}</td><td>${stt(r)}</td></tr>`}).join('')}</tbody></table></div></div>
    <div class="card"><h2>Goalies</h2><div class="tw"><table class="t"><thead><tr><th>SLOT</th><th class="l">GOALIE</th><th>NHL</th><th>ROLE</th><th class="l">P.A.M GOALIE GRADE</th><th>RANK</th><th>GP</th><th>W</th><th>GAA</th><th>SV</th><th>SO</th><th>STATUS</th></tr></thead><tbody>
    ${gkr.map(r=>{const g=r.m;return `<tr class="${g?'click':''}" ${g?`data-gl="${g.id}"`:''}><td><b>${r.slot}</b></td><td class="nm stk">${esc(r.name)}</td><td>${r.nhl}</td><td>${g?`<span class="pill ${GROLE[g.role]}">${g.role.toUpperCase()}</span>`:'—'}</td><td>${g?gradeBar(g.grade):'<span class="muted">No games yet</span>'}</td><td>${g?(g.rank<=3?puck(g.rank):'#'+g.rank):'—'}</td><td>${g?g.GP:'—'}</td><td>${g?g.W:'—'}</td><td>${g?g.GAA.toFixed(2):'—'}</td><td>${g?g.SV:'—'}</td><td>${g?g.SO:'—'}</td><td>${stt(r)}</td></tr>`}).join('')}</tbody></table></div></div>`;
 
 }
-V.rosters.after = () => { const el = $('#rostsel'); if (el) el.onchange = e => { state.roster = e.target.value; render(); }; };
+V.rosters.after = () => { const el = $('#rostsel'); if (el) el.onchange = e => { state.roster = e.target.value; render(); }; rinkPlay(); };
 V.method = () => {
   const m = P.meta, gps = players.map(p=>p.GP);
   const steps = [
