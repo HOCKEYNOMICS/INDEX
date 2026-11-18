@@ -456,15 +456,16 @@ table.mx{border-collapse:separate;border-spacing:3px;font-size:12px;background:#
 @media (prefers-reduced-motion:reduce){.ss-svg *{animation:none!important}}
 .st2{position:relative;border-radius:12px;overflow:hidden;box-shadow:0 0 0 1px var(--ice2)}
 .st2 svg{display:block;width:100%;height:auto}
-.st2l,.st2r{position:absolute;top:6px;font-family:Oswald;line-height:1.15;pointer-events:none}
-.st2l{left:10px}.st2r{right:30px;text-align:right}
-#st2lab{font-size:11px;letter-spacing:.14em;color:#5B6B7F}#st2tot{font-size:22px;color:var(--navy);font-weight:500}#st2rk{font-size:11px;color:#5B6B7F;font-family:Inter,sans-serif}
-#st2md{font-size:13px;letter-spacing:.08em}#st2gr{font-size:11.5px;color:#5B6B7F;font-family:Inter,sans-serif}
+.st2h{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:8px 12px 6px;background:#fff;font-family:Oswald}
+.st2l,.st2r{display:flex;align-items:baseline;gap:8px;white-space:nowrap}
+#st2lab{font-size:11.5px;letter-spacing:.14em;color:#5B6B7F}#st2tot{font-size:20px;color:var(--navy);font-weight:500;line-height:1}#st2rk{font-size:11.5px;color:#5B6B7F;font-family:Inter,sans-serif}
+#st2md{font-size:12.5px;letter-spacing:.08em}#st2gr{font-size:11.5px;color:#5B6B7F;font-family:Inter,sans-serif}
+.st2b{height:5px;background:#E6ECF2}.st2b b{display:block;height:100%;width:0;border-radius:0 3px 3px 0;transition:width 1s cubic-bezier(.2,.8,.3,1)}
 .st2cs{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:10px}
 .st2c{border:1px solid var(--ice2);background:#fff;border-radius:999px;padding:4px 10px 4px 8px;font:600 12px Inter,sans-serif;color:var(--navy);display:inline-flex;align-items:center;gap:6px;cursor:pointer}
 .st2c i{width:8px;height:8px;border-radius:50%;display:inline-block}
 .st2c.on{border-color:var(--navy);box-shadow:0 0 0 1px var(--navy)}
-@media (max-width:560px){#st2tot{font-size:17px}#st2md{font-size:11px}.st2r{right:22px}}
+@media (max-width:560px){.st2h{padding:7px 10px 5px}#st2tot{font-size:17px}#st2lab,#st2rk,#st2gr{font-size:10.5px}#st2md{font-size:11px}.st2l,.st2r{gap:6px}}
 
 .grid>.kpi{box-sizing:border-box}
 .myroster{margin-top:18px}
@@ -3672,16 +3673,16 @@ function st2HTML(t, sg, KWk){
   ST2 = {K: TEAM_KIT[nrm(t)] || {base:'#0B1F3A', c1:'#C8102E', c2:'#D4A62A'}, cats, n, cur: cats.slice().sort((a, b) => b.g - a.g)[0].c};
   const chip = x => `<button class="st2c" data-st2="${esc(x.c)}"><i style="background:${gHue(x.g)}"></i>${esc(x.c)}</button>`;
   return `<div class="card ss-wrap"><h2 style="margin:0 0 2px">Season team stats</h2><p class="muted" style="font-size:12.5px;margin:0 0 10px">Pick a category: your player acts it out, and his attitude follows your season grade (0–100, 50 = league average). Totals through week ${W.week}.</p>
-   <div class="st2"><svg id="st2svg" viewBox="0 20 320 120" role="img" aria-label="Season team stats animation"></svg>
-    <div class="st2l"><div id="st2lab"></div><div><b id="st2tot"></b> <span id="st2rk"></span></div></div><div class="st2r"><div id="st2md"></div><div id="st2gr"></div></div></div>
+   <div class="st2"><div class="st2h"><div class="st2l"><span id="st2lab"></span><b id="st2tot"></b><span id="st2rk"></span></div><div class="st2r"><span id="st2md"></span><span id="st2gr"></span></div></div>
+    <div class="st2b"><b id="st2bar"></b></div><svg id="st2svg" viewBox="0 26 320 108" role="img" aria-label="Season team stats animation"></svg></div>
    <div class="st2cs"><span class="ss-sub" style="margin:0 4px 0 0">Skaters</span>${cats.filter(x => !['W','GAA','SV','SHO'].includes(x.c)).map(chip).join('')}<span class="ss-sub" style="margin:0 4px 0 8px">Goalies</span>${cats.filter(x => ['W','GAA','SV','SHO'].includes(x.c)).map(chip).join('')}</div></div>`;
 }
-function st2Rink(K){
-  return `<rect width="320" height="140" fill="#F7FAFD"/><rect width="320" height="50" fill="#EEF4FA"/><path d="M0 50 H320" stroke="#D5E2EE"/>${[40,80,120,160,200,240,280].map(x => `<path d="M${x} 20 V50" stroke="#DFE8F1" stroke-width=".8"/>`).join('')}
-   <rect y="50" width="320" height="10" fill="#fff"/><rect y="57.5" width="320" height="2.5" fill="${K.c1}" opacity=".85"/><path d="M0 60 H320" stroke="#D5E2EE"/>
+function st2Rink(K, g){
+  return `<rect width="320" height="140" fill="#F7FAFD"/><rect width="320" height="30" fill="#EEF4FA"/>${[40,80,120,160,200,240,280].map(x => `<path d="M${x} 26 V30" stroke="#DFE8F1" stroke-width=".6"/>`).join('')}<path d="M0 30 H320" stroke="#D5E2EE"/>
+   <rect y="30" width="320" height="5" fill="#fff"/><rect y="32.4" width="320" height="1.2" fill="${K.c1}" opacity=".8"/><path d="M0 35 H320" stroke="#D5E2EE"/>
    <path d="M0 128.5 H320" stroke="#E1E9F1"/>
-   <g id="st2glass"><rect x="304" y="0" width="16" height="60" fill="#DCEAF5" stroke="#C5D6E6"/><rect x="304" y="60" width="16" height="70" fill="#fff" stroke="#D5E2EE"/><rect x="304" y="118" width="16" height="10" fill="#F2C94C"/></g>
-   <circle id="st2light" cx="312" cy="54" r="3.4" fill="#7A1E1E"/>`;
+   <g id="st2glass"><rect x="304" y="0" width="16" height="35" fill="#DCEAF5" stroke="#C5D6E6"/><rect x="304" y="35" width="16" height="95" fill="#fff" stroke="#D5E2EE"/><rect x="304" y="118" width="16" height="10" fill="#F2C94C"/></g>
+   <circle id="st2light" cx="312" cy="42" r="3" fill="#7A1E1E"/>`;
 }
 const st2Net = (x, crease) => `${crease ? `<path d="M${x} 128 a26 5 0 0 0 -52 0 z" fill="#CFE3F5"/><path d="M${x - 52} 128 a26 5 0 0 1 52 0" fill="none" stroke="#C8102E" stroke-width=".8"/>` : ''}<g id="st2net" transform="translate(${x} 87) scale(1.7)"><path d="M2 22 L20 22 L22 4 Q11 -2 0 4 Z" fill="#fff" opacity=".75"/><path d="M4 6 L18 6 M3 12 L19.5 12 M2.4 18 L20.4 18 M8 2 L7 22 M14 2 L15 22" stroke="#C9D3DD" stroke-width=".7"/><path d="M0 22 V4 Q11 -2 22 4 V22" fill="none" stroke="#C8102E" stroke-width="2" stroke-linejoin="round"/></g>`;
 const st2Act = (id, inner) => `<g id="st2-${id}">${inner}</g>`;
@@ -3851,13 +3852,14 @@ function st2Play(c){
   if (!ST2) return; const svg = document.getElementById('st2svg'); if (!svg) return;
   const x = ST2.cats.find(y => y.c === c) || ST2.cats[0]; ST2.cur = x.c;
   const sc = st2Scene(x.c, x.tier, ST2.K), dur = 3.2 * ST2_SPD[x.tier] * 1000;
-  svg.innerHTML = st2Rink(ST2.K) + sc.svg + (x.tier === 'elite' ? `<g class="ss-spark" fill="${ST2.K.c2 === '#FFFFFF' ? '#FFD23F' : ST2.K.c2}"><path d="M150 52 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2z"/><path d="M196 46 l1.6 4 4 1.6 -4 1.6 -1.6 4 -1.6 -4 -4 -1.6 4 -1.6z" style="animation-delay:.5s"/></g>` : x.tier === 'cold' ? `<g fill="#D6E8F6"><circle cx="40" cy="132" r="1.6"/><circle cx="120" cy="134" r="1.3"/><circle cx="210" cy="132" r="1.6"/><circle cx="270" cy="135" r="1.2"/></g><g class="ss-zz" fill="#7FA7C9" font-family="Oswald,sans-serif" font-weight="700"><text x="24" y="70" font-size="12">z</text><text x="31" y="60" font-size="10" style="animation-delay:.6s">z</text><text x="37" y="52" font-size="8" style="animation-delay:1.2s">z</text></g>` : '');
+  svg.innerHTML = st2Rink(ST2.K, x.g) + sc.svg + (x.tier === 'elite' ? `<g class="ss-spark" fill="${ST2.K.c2 === '#FFFFFF' ? '#FFD23F' : ST2.K.c2}"><path d="M150 52 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2z"/><path d="M196 46 l1.6 4 4 1.6 -4 1.6 -1.6 4 -1.6 -4 -4 -1.6 4 -1.6z" style="animation-delay:.5s"/></g>` : x.tier === 'cold' ? `<g fill="#D6E8F6"><circle cx="40" cy="132" r="1.6"/><circle cx="120" cy="134" r="1.3"/><circle cx="210" cy="132" r="1.6"/><circle cx="270" cy="135" r="1.2"/></g><g class="ss-zz" fill="#7FA7C9" font-family="Oswald,sans-serif" font-weight="700"><text x="24" y="70" font-size="12">z</text><text x="31" y="60" font-size="10" style="animation-delay:.6s">z</text><text x="37" y="52" font-size="8" style="animation-delay:1.2s">z</text></g>` : '');
   const net = svg.querySelector('#st2net'); if (net) { const m_ = net.getAttribute('transform').match(/translate\(([\d.]+) [\d.]+\) scale\((-?)/); net.dataset.x = m_ ? m_[1] : 262; net.dataset.sx = m_ && m_[2] ? -1 : 1; }
   const fmt = v => v == null ? '–' : x.c === 'GAA' ? (+v).toFixed(2) : x.c === '+/-' && v > 0 ? '+' + v : v;
   $('#st2lab').textContent = (SS_LAB[x.c] || x.c).toUpperCase(); $('#st2tot').textContent = fmt(x.tot); $('#st2rk').textContent = `#${x.rk} of ${ST2.n}`;
-  const m = ST2_MOOD[x.tier]; $('#st2md').textContent = m[0].toUpperCase(); $('#st2md').style.color = m[1]; $('#st2gr').innerHTML = `Season grade <b style="color:${gHue(x.g)}">${x.g.toFixed(0)}</b>`;
+  const m = ST2_MOOD[x.tier]; $('#st2md').textContent = m[0].toUpperCase(); $('#st2md').style.color = m[1]; $('#st2gr').innerHTML = `grade <b style="color:${gHue(x.g)}">${x.g.toFixed(0)}</b>`;
   document.querySelectorAll('[data-st2]').forEach(b => b.classList.toggle('on', b.dataset.st2 === x.c));
   const C = st2Ctx(svg); cancelAnimationFrame(ST2_RAF); sc.f(0, C);
+  { const bar = document.getElementById('st2bar'); if (bar) { bar.style.transition = 'none'; bar.style.width = '0'; bar.style.background = gHue(x.g); requestAnimationFrame(() => requestAnimationFrame(() => { bar.style.transition = ''; bar.style.width = Math.max(2, x.g).toFixed(1) + '%'; })); } }
   const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches, t0 = performance.now();
   const step = now => { if (!document.body.contains(svg)) return; const t = reduce ? 1 : Math.min(1, (now - t0) / dur); sc.f(t, C);
     if (t >= 1) { const k = ['W','GAA','SV','SHO'].includes(x.c) ? 'g' : 'k', p = C.get(k); if (p && p.x != null && !reduce) { const a = (now - t0 - dur) / 1000;
