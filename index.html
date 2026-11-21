@@ -483,6 +483,7 @@ table.mx{border-collapse:separate;border-spacing:3px;font-size:12px;background:#
 .trx-hero{padding:14px 16px;margin-bottom:12px}
 .trx-top{font-family:Oswald;font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--mute);margin-bottom:8px}
 .trx-vs{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px}
+.trx-dual{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr));gap:18px;margin-top:12px}.trx-col{min-width:0}.trx-col .trx-why{margin-top:12px}
 .trx-v{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;align-items:center;background:var(--ice);border-radius:12px;padding:10px 12px;border-left:5px solid var(--vc)}
 .trx-dial{width:104px;height:64px}
 .trx-lab{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute)}
@@ -1771,33 +1772,43 @@ function trxSide(who, R, side, V){   // one team's verdict card: dial, words, th
   const sub = R.score >= 53 ? '' : n == null ? '' : LB[0] === 47 ? `${n} of 3 improved · grade ${n >= 2 ? '42' : '47'}+` : `${n} of 3 improved: not enough for “fair” at ${R.score}`;
   return `<div class="trx-v" style="--vc:${col}">${trxDial(R.score, col)}<div class="trx-vt"><div class="trx-lab">${esc(who)}${/s$/i.test(who) ? '’' : '’s'} verdict</div><div class="trx-word" style="color:${col}">${LB[1]} ${esc(LB[2])}</div>${sub ? `<div class="trx-sub">${sub}</div>` : ''}</div>${m}</div>`;
 }
-function trxHero(me, TRS, TRO, outV, inV, give, get, drop, act, s, xh){
-  const V = TRS.v2, X = V && V.X, R = V && V.R;
-  const cards = `<div class="trx-vs">${trxSide(me, TRS, 'me', V)}${TRO ? trxSide(tc(s.partner), TRO, 'me', TRO.v2) : ''}</div>`;
+function trxCats(V, rkey){   // category impact tiles + category win chance table + best/worst headlines for one team's analysis
+  const X = V && V.X, R = V && V.R, heads = []; let html = '';
+  if (!(X && R && R[rkey])) return [html, heads];
+  const A = R[rkey], d = X.cats.map(c => [c, A[1].pc[c] - A[0].pc[c]]);
+  html = `<div class="trx-h">Category impact <span>· change in win chance, remaining schedule</span></div><div class="trx-tiles">${d.map(([c, v]) => { const k = Math.abs(v) < 0.0005 ? 'z' : v > 0 ? 'p' : 'n';
+    return `<div class="trx-tile ${k}"><b>${k === 'z' ? '–' : `${v > 0 ? '+' : '−'}${Math.abs(v * 100).toFixed(1)}`}</b>${esc(c)}</div>`; }).join('')}</div>`;
+  const cls = (q, e) => q > e ? 'pos' : q < -e ? 'neg' : 'muted', mx = Math.max(0.05, ...d.map(([, v]) => Math.abs(v)));
+  const rows = X.cats.map(c => { const a = A[0].pc[c], b = A[1].pc[c], dd = b - a, w = Math.min(50, Math.abs(dd) / mx * 50);
+    const bar = `<div class="v2bar"><i style="${dd >= 0 ? 'left:50%' : `left:${50 - w}%`};width:${w}%;background:${dd >= 0 ? 'var(--green,#1d6b4a)' : 'var(--red)'}"></i></div>`;
+    return `<tr${Math.abs(dd) < 0.0005 ? ' class="v2z"' : ''}><td class="l"><b>${esc(c)}</b></td><td>${(a * 100).toFixed(1)}%</td><td>${(b * 100).toFixed(1)}%</td><td class="${cls(dd, 0.0005)}" style="font-weight:700">${Math.abs(dd) < 0.0005 ? '–' : `${dd > 0 ? '+' : '−'}${Math.abs(dd * 100).toFixed(1)}`}</td><td style="width:30%">${bar}</td></tr>`; }).join('');
+  html += `<div class="trx-h">Category win chance <span>· average over the remaining schedule</span></div><div class="tw" style="margin-top:4px"><table class="t" style="font-size:12.5px"><thead><tr><th class="l">CATEGORY</th><th>BEFORE</th><th>AFTER</th><th>Δ PTS</th><th>CHANGE</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  const best = d.slice().sort((a, b) => b[1] - a[1])[0], worst = d.slice().sort((a, b) => a[1] - b[1])[0];
+  if (best && best[1] > 0.0005) heads.push(['ok', 'Helps most', `${esc(best[0])}: win chance ${(A[0].pc[best[0]] * 100).toFixed(0)}% → ${(A[1].pc[best[0]] * 100).toFixed(0)}%.`]);
+  if (worst && worst[1] < -0.0005) heads.push(['no', 'Costs', `${esc(worst[0])}: win chance ${(A[0].pc[worst[0]] * 100).toFixed(0)}% → ${(A[1].pc[worst[0]] * 100).toFixed(0)}%.`]);
+  return [html, heads];
+}
+const trxHL = heads => heads.length ? `<div class="trx-why">${heads.map(([k, t, x]) => `<div class="trx-w ${k}"><i>${k === 'ok' ? '✓' : k === 'no' ? '↘' : '!'}</i><div><b>${t}:</b> ${x}</div></div>`).join('')}</div>` : '';
+function trxWarn(give, get, drop, act, V, wireLike){   // injured incoming players, more in than out, small samples
+  const rowOf = new Map(); try { Object.keys(DATA.rosters.teams).forEach(t => rosterRows(t).forEach(r => { if (r.m) rowOf.set(r.m, r); })); } catch (e) {}
+  const hurt = get.map(x => [x, rowOf.get(x.p)]).filter(([x, r]) => r && (['O','IR','IR-LT','IR+'].includes(r.st) || (r.slot || '').startsWith('IR')));
+  const oN = give.length + drop.length, iN = get.length + act.length, warn = [];
+  if (hurt.length) warn.push(`${hurt.map(([x, r]) => `${esc(x.name)} is ${r.st === 'O' ? 'out' : r.st ? r.st : 'in an ' + r.slot + ' spot'}`).join('; ')}.`);
+  if (!wireLike && iN > oN) warn.push(`Takes on ${iN} for ${oN}: someone on the roster has to be dropped.`);
+  if (V && V.risk && V.risk.length) warn.push(`Small sample: ${V.risk.map(esc).join(', ')}.`);
+  return warn.length ? [['wn', 'Watch out', warn.join(' ')]] : [];
+}
+function trxHero(me, TRS, TRO, outV, inV, give, get, drop, act, s, xh, full){
+  const V = TRS.v2;
   const mx = Math.max(outV, inV, 1), val = `<div class="trx-val"><div class="trx-vl"><span>Value out <b>${outV.toFixed(1)}</b></span><span>Value in <b>${inV.toFixed(1)}</b></span></div><div class="trx-vb"><i style="flex:${outV.toFixed(2)};background:var(--red)"></i><i style="flex:${inV.toFixed(2)};background:var(--blue)"></i></div></div>`;
-  let tiles = '', heads = [];
-  if (X && R && R.me) { const d = X.cats.map(c => [c, R.me[1].pc[c] - R.me[0].pc[c]]);
-    tiles = `<div class="trx-h">Category impact <span>· change in win chance, remaining schedule</span></div><div class="trx-tiles">${d.map(([c, v]) => { const k = Math.abs(v) < 0.0005 ? 'z' : v > 0 ? 'p' : 'n';
-      return `<div class="trx-tile ${k}"><b>${k === 'z' ? '–' : `${v > 0 ? '+' : '−'}${Math.abs(v * 100).toFixed(1)}`}</b>${esc(c)}</div>`; }).join('')}</div>`;
-    { const cls = (d, e) => d > e ? 'pos' : d < -e ? 'neg' : 'muted', mx = Math.max(0.05, ...d.map(([, v]) => Math.abs(v)));
-      const rows = X.cats.map(c => { const a = R.me[0].pc[c], b = R.me[1].pc[c], dd = b - a, w = Math.min(50, Math.abs(dd) / mx * 50);
-        const bar = `<div class="v2bar"><i style="${dd >= 0 ? 'left:50%' : `left:${50 - w}%`};width:${w}%;background:${dd >= 0 ? 'var(--green,#1d6b4a)' : 'var(--red)'}"></i></div>`;
-        return `<tr${Math.abs(dd) < 0.0005 ? ' class="v2z"' : ''}><td class="l"><b>${esc(c)}</b></td><td>${(a * 100).toFixed(1)}%</td><td>${(b * 100).toFixed(1)}%</td><td class="${cls(dd, 0.0005)}" style="font-weight:700">${Math.abs(dd) < 0.0005 ? '–' : `${dd > 0 ? '+' : '−'}${Math.abs(dd * 100).toFixed(1)}`}</td><td style="width:34%">${bar}</td></tr>`; }).join('');
-      tiles += `<div class="trx-h">Category win chance <span>· average over the remaining schedule</span></div><div class="tw" style="margin-top:4px"><table class="t" style="font-size:12.5px"><thead><tr><th class="l">CATEGORY</th><th>BEFORE</th><th>AFTER</th><th>Δ PTS</th><th>CHANGE</th></tr></thead><tbody>${rows}</tbody></table></div>`; }
-    const best = d.slice().sort((a, b) => b[1] - a[1])[0], worst = d.slice().sort((a, b) => a[1] - b[1])[0];
-    if (best && best[1] > 0.0005) heads.push(['ok', 'Helps most', `${esc(best[0])}: win chance ${(R.me[0].pc[best[0]] * 100).toFixed(0)}% → ${(R.me[1].pc[best[0]] * 100).toFixed(0)}%.`]);
-    if (worst && worst[1] < -0.0005) heads.push(['no', 'Costs you', `${esc(worst[0])}: win chance ${(R.me[0].pc[worst[0]] * 100).toFixed(0)}% → ${(R.me[1].pc[worst[0]] * 100).toFixed(0)}%.`]);
+  const [myC, myH] = trxCats(V, 'me'), mine = (xh || []).concat(myH.map(h => h[1] === 'Costs' ? ['no', 'Costs you', h[2]] : h), trxWarn(give, get, drop, act, V, s.partner === 'WIRE'));
+  if (full && TRO && TRO.v2) {   // Safe page: each team's full verdict, side by side
+    const [ptC, ptH] = trxCats(TRO.v2, 'me'), pn = tc(s.partner), theirs = ptH.map(h => h[1] === 'Costs' ? ['no', `Costs ${esc(pn)}`, h[2]] : h).concat(trxWarn(get, give, [], [], TRO.v2, false));
+    const col = (card, c, h) => `<div class="trx-col">${card}${c}${trxHL(h)}</div>`;
+    return `<div class="card trx-hero"><div class="trx-top">The verdict</div>${val}<div class="trx-dual">${col(trxSide(me, TRS, 'me', V), myC, mine)}${col(trxSide(pn, TRO, 'me', TRO.v2), ptC, theirs)}</div></div>`;
   }
-  { const rowOf = new Map(); try { Object.keys(DATA.rosters.teams).forEach(t => rosterRows(t).forEach(r => { if (r.m) rowOf.set(r.m, r); })); } catch (e) {}
-    const hurt = get.map(x => [x, rowOf.get(x.p)]).filter(([x, r]) => r && (['O','IR','IR-LT','IR+'].includes(r.st) || (r.slot || '').startsWith('IR')));
-    const oN = give.length + drop.length, iN = get.length + act.length, warn = [];
-    if (hurt.length) warn.push(`${hurt.map(([x, r]) => `${esc(x.name)} is ${r.st === 'O' ? 'out' : r.st ? r.st : 'in an ' + r.slot + ' spot'}`).join('; ')}.`);
-    if (s.partner !== 'WIRE' && iN > oN) warn.push(`You take on ${iN} for ${oN}: someone on your roster has to be dropped.`);
-    if (V && V.risk && V.risk.length) warn.push(`Small sample: ${V.risk.map(esc).join(', ')}.`);
-    if (warn.length) heads.push(['wn', 'Watch out', warn.join(' ')]); }
-  if (xh) heads.unshift(...xh);
-  const hl = heads.length ? `<div class="trx-why">${heads.map(([k, t, x]) => `<div class="trx-w ${k}"><i>${k === 'ok' ? '✓' : k === 'no' ? '↘' : '!'}</i><div><b>${t}:</b> ${x}</div></div>`).join('')}</div>` : '';
-  return `<div class="card trx-hero"><div class="trx-top">The verdict</div>${cards}${val}${tiles}${hl}</div>`;
+  const cards = `<div class="trx-vs">${trxSide(me, TRS, 'me', V)}${TRO ? trxSide(tc(s.partner), TRO, 'me', TRO.v2) : ''}</div>`;
+  return `<div class="card trx-hero"><div class="trx-top">The verdict</div>${cards}${val}${myC}${trxHL(mine)}</div>`;
 }
 V.trade = () => {
   if (state.gradeMode === 'exp') { state.gradeMode = 'season'; applyGradeMode(); }  // Trade Analysis runs on current-season grades only
@@ -2076,7 +2087,7 @@ V.safeTrade = () => {
   if (TRS && TRS.v2) {   // Nov 21 2026: same verdict layout as Trade Analysis, both teams side by side
     const TRO = (mode==='trade' && s.partner && !wire && !move) ? trsRate(s.partner, get, give, [], rep.s) : null, xh = [];
     if (s.team && SAFE_RULES[s.team]) { const rq = why.find(x => x.startsWith('🛡️') || x.startsWith('<b class="neg">🛡️')); if (rq) xh.push(rq.startsWith('🛡️') ? ['ok', 'Roster', rq.replace(/^🛡️ /, '')] : ['no', 'Roster', rq.replace(/^<b class="neg">🛡️ ([^<]*)<\/b>/, '$1')]); }
-    out += trxHero(me, TRS, TRO, outV, inV, give, get.concat(fa), drop, act, s, xh) + sfImpact(s.team, (wire||move) ? null : s.partner, (wire||move) ? [] : give, get, (wire||move) ? give.concat(drop) : drop, actX);
+    out += trxHero(me, TRS, TRO, outV, inV, give, get.concat(fa), drop, act, s, xh, true) + sfImpact(s.team, (wire||move) ? null : s.partner, (wire||move) ? [] : give, get, (wire||move) ? give.concat(drop) : drop, actX);
   } else
   out += `<div class="note ${vcls||'navy'} rink" style="margin-bottom:16px;padding:16px 18px">${rinkSVG('rkv')}<div class="t">The verdict</div><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:2px 0 10px"><div class="osw" style="font-size:26px">${vic} ${verdict}</div></div>${TRS && TRS.v2 ? trsV2HTML(TRS.v2, s.team) : TRS ? trsScaleHTML(TRS, me) : ''}
     <div class="cmp" style="max-width:640px"><div class="a"><span style="font-weight:700;min-width:44px;text-align:right">${outV.toFixed(1)}</span><i style="width:${outV/mx*100}%;background:var(--red)"></i></div><div class="lbl">VALUE</div><div class="b"><i style="width:${inV/mx*100}%;background:var(--blue)"></i><span style="font-weight:700">${inV.toFixed(1)}</span></div></div>
