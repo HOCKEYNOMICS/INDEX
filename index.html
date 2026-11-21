@@ -561,6 +561,21 @@ table.mx{border-collapse:separate;border-spacing:3px;font-size:12px;background:#
 .trpk-st{font-size:10.5px;font-weight:700;color:var(--red);border:1px solid var(--red);border-radius:4px;padding:0 4px;margin-left:4px}
 .trpk-r .trg{font:500 12px Oswald;color:#fff;border-radius:5px;padding:2px 7px}
 .trpk-done{width:100%;margin-top:10px;justify-content:center}
+.drd>summary{cursor:pointer;font-weight:600;font-size:13.5px;padding:6px 0}
+.drord{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px 12px}.drord select{max-width:none;width:100%}
+.drclk{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}.drclk>div{background:var(--ice);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column}.drclk b{font-family:Oswald;font-size:20px;font-weight:500;color:var(--navy)}.drclk span{font-size:12px}
+.drclk>div.on{background:#EAF3DE}.drclk>div.on b{color:#27500A}
+.drrec,.drr{display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid var(--ice2);font-size:13.5px}.drr.mine{background:#EAF3DE}
+.drk{width:24px;height:24px;flex:none;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font:500 13px Oswald}
+.drnm{flex:1;min-width:0}.drnm .muted{font-size:11.5px}.drnm b[data-pl],.drnm b[data-gl]{cursor:pointer}
+.drn{width:30px;flex:none;text-align:right;color:var(--mute);font-size:12px}
+.drg{font:500 13px Oswald;min-width:44px;text-align:right}
+.drrec .trg,.drr .trg{font:500 12px Oswald;color:#fff;border-radius:5px;padding:2px 7px}
+.drpk{padding:5px 10px;font-size:12px;white-space:nowrap}
+.drlg{font-size:10.5px;font-weight:700;color:var(--red);border:1px solid var(--red);border-radius:4px;padding:0 4px;margin-left:6px}
+.drneed{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}.drneed>div{background:var(--ice);border-radius:8px;text-align:center;padding:6px 2px;font-size:12px}.drneed b{display:block;font-family:Oswald;font-size:16px;font-weight:500}.drneed>div.ok{background:#EAF3DE;color:#27500A}
+.drmine{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.drmine span{background:var(--ice);border-radius:6px;padding:3px 8px;font-size:12.5px}.drmine i{font-style:normal;color:var(--mute);font-size:11px}
+.drbar{display:grid;grid-template-columns:38px 1fr 40px;align-items:center;gap:8px;font-size:12.5px;margin:4px 0}.drbar>div{position:relative;height:8px;background:var(--ice);border-radius:4px}.drbar>div::after{content:"";position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;background:#9aa6b5}.drbar i{position:absolute;top:0;bottom:0;border-radius:4px}.drbar b{text-align:right;font-family:Oswald;font-weight:500}
 .ac{position:relative}
 .ac .list{position:absolute;top:100%;left:0;right:0;background:#fff;box-shadow:0 6px 18px rgba(0,0,0,.18);border-radius:6px;z-index:20;max-height:260px;overflow:auto}
 .ac .list div{padding:7px 10px;cursor:pointer;font-size:13px}
@@ -2022,6 +2037,7 @@ function sfLeague(me, pt, give, get, drop, act, hasMove){ // Safe only: three vi
   </div>`;
 }
 
+const SF_MODES = [['trade','🤝 Trade'],['wire','🆓 Waiver wire pickup'],['drop','🗑️ Drop'],['move','🔁 Drop & activate'],['stream','📡 Streaming'],['sugg','🤝 Suggested trades'],['wpick','🆓 Waiver wire pickups'],['draft','📋 Draft']];
 V.safeTrade = () => {
   if (state.gradeMode === 'exp') { state.gradeMode = 'season'; applyGradeMode(); }  // Safe runs on current-season grades only
   const s = state.sf, pool = trPool(), byK = {}; pool.forEach(x=>byK[x.k]=x);
@@ -2042,7 +2058,7 @@ V.safeTrade = () => {
   const col = (side, label, list, color) => `<div class="card" style="border-top:4px solid ${color}"><h2>${label}</h2>
     <div class="ac"><input type="search" id="sf-${side}" placeholder="${side==='fa' ? 'Tap for top free agents, or type a name…' : side==='act' ? (s.team?`Tap to pick an player in an IR / IR+ spot from ${esc(tc(s.team))}…`:'Pick the team giving first…') : side==='give'||side==='drop' ? (s.team?`Tap to pick from ${esc(tc(s.team))}…`:'Add a skater or goalie…') : (wire?'Tap for top free agents, or type a name…':s.partner?`Tap to pick from ${esc(tc(s.partner))}…`:'Add a skater or goalie…')}" style="width:100%;max-width:none"><div class="list" id="sf-${side}l" hidden></div></div>
     <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">${list.map(x=>card(x,side)).join('') || `<div class="muted" style="padding:10px 0">${side==='fa'?'No pickup. Add any free agent to pick up with this move (if the trade leaves you with only 2 goalies, add a free-agent goalie here).':side==='act'?'No activation. Add a player moving from an IR / IR+ spot back to the active roster.':side==='give'&&move?'Nobody yet. Add the player you would release to the waiver wire.':side==='drop'?'No drop. Add one if the trade leaves you over the roster limit.':side==='give'&&wire?'Nobody yet. Leave empty if you have an open roster spot, or add the player you would drop.':((side==='give'?s.team:(s.partner&&s.partner!=='WIRE'))?'No players yet. Tap “Add players” to pick from the roster.':'No players yet. Tap “Add players” to find one.')}</div>`}</div></div>`;
-  const modeBtns = seg('sfMode', [['trade','🤝 Trade'],['wire','🆓 Waiver wire pickup'],['drop','🗑️ Drop'],['move','🔁 Drop & activate'],['stream','📡 Streaming'],['sugg','🤝 Suggested trades'],['wpick','🆓 Waiver wire pickups']], mode);
+  const modeBtns = seg('sfMode', SF_MODES, mode);
   const teamOne = `<label class="lb">Your team <select id="sfteam"><option value="">— Pick a team —</option>${T.map(t=>`<option value="${esc(t)}" ${s.team===t?'selected':''}>${esc(tc(t))}</option>`).join('')}</select></label>`;
   const teamSel = mode!=='trade' ? teamOne : `<label class="lb">Your team <select id="sfteam"><option value="">— Any team —</option>${T.map(t=>`<option value="${esc(t)}" ${s.team===t?'selected':''}>${esc(tc(t))}</option>`).join('')}</select></label>
     <label class="lb">Team receiving <select id="sfpartner"><option value="">— Any team —</option>${T.map(t=>`<option value="${esc(t)}" ${s.partner===t?'selected':''}>${esc(tc(t))}</option>`).join('')}</select></label>`;
@@ -2647,11 +2663,190 @@ function sfFinderPart(part){   // Suggested trades / Waiver wire pickups tabs: o
   const head = H.slice(0, H.indexOf('<div class="grid g2"><!--SFT0-->')), tail = H.slice(H.indexOf('<!--SFW1--></div>') + '<!--SFW1--></div>'.length);
   return head + (part === 'sugg' ? cut('<!--SFT0-->', '<!--SFT1-->') : cut('<!--SFW0-->', '<!--SFW1-->')) + tail;
 }
-V.safe = () => SAFE_OK ? V.safeTrade() + (['sugg', 'wpick'].includes(state.sfMode) ? sfFinderPart(state.sfMode) : '') : `<div class="card" style="max-width:420px;margin:40px auto;text-align:center;padding:30px 24px;border-top:4px solid var(--gold)">
+/* ---------- SAFE · 📋 Draft board (Nov 21 2026): snake draft assistant for The Scalawags ----------
+   Values blend the latest season (60%) with the one before (40%); a season under 20 games counts less.
+   Each team's projected lineup = its drafted players in C2 LW2 RW2 D4 G2 (bench at 15%), with open starting spots filled by
+   what the league is expected to take at that position. Advice = gain in expected category wins per matchup against
+   every other team's projected lineup (all-play), adjusted for who is likely gone before your next pick. */
+const DR_SLOTS = {C: 2, LW: 2, RW: 2, D: 4, G: 2}, DR_BN = 4, DR_ROUNDS = 16, DR_BENCH_W = 0.15, DR_WEEKS = 24;
+const DR_CATS = ['G', 'A', '+/-', 'PPP', 'SOG', 'HIT', 'BLK', 'W', 'GAA', 'SV', 'SHO'];
+const DR = {st: null, db: null, dbTried: false, pos: 'All', q: '', sort: 'rec', resetArm: false, cache: null};
+const drTeams = () => (DATA.league && DATA.league.keys) || (DATA.rosters ? Object.keys(DATA.rosters.teams) : []);
+const drMe = () => { const T = drTeams(); return T.includes('THE SCALAWAGS') ? 'THE SCALAWAGS' : (state.sf && state.sf.team) || T[0]; };
+function drLoad(){
+  if (DR.st) return DR.st; let st = null;
+  try { st = JSON.parse(localStorage.getItem('nmkp_draft') || 'null'); } catch (e) {}
+  const T = drTeams();
+  if (!st || !Array.isArray(st.order) || st.order.length !== T.length || !T.every(t => st.order.includes(t))) st = {order: [drMe()].concat(T.filter(t => t !== drMe())), picks: [], updatedAt: ''};
+  return DR.st = st;
+}
+function drSave(){
+  const st = DR.st; st.updatedAt = new Date().toISOString(); DR.cache = null;
+  try { localStorage.setItem('nmkp_draft', JSON.stringify(st)); } catch (e) {}
+  if (DR.db) DR.db.doc('keydesk/draft').set({order: st.order, picks: st.picks, updatedAt: st.updatedAt}).catch(() => {});
+}
+function drConnect(){
+  if (DR.dbTried) return; DR.dbTried = true;
+  (window.claude && claude.use ? claude.use('db') : Promise.resolve(null)).then(db => { if (!db) return; DR.db = db;
+    db.collection('keydesk').onSnapshot(snap => { const d = snap.docs.find(x => x.id === 'draft'); if (!d) return; const v = d.data();
+      if (!v || !Array.isArray(v.order) || (v.updatedAt || '') <= ((DR.st && DR.st.updatedAt) || '')) return;
+      DR.st = {order: v.order, picks: v.picks || [], updatedAt: v.updatedAt}; DR.cache = null;
+      try { localStorage.setItem('nmkp_draft', JSON.stringify(DR.st)); } catch (e) {}
+      if (SAFE_OK && state.sfMode === 'draft') render(); }, () => {});
+  }).catch(() => {});
+}
+const drSnake = (n, N) => { const r = Math.ceil(n / N), i = (n - 1) % N; return r % 2 ? i : N - 1 - i; };   // pick n (1-based) → spot index
+function drPool(){   // blended season projection per player: [G, A, +/-, PPP, SOG, HIT, BLK, W, GAA, SV, SHO]
+  const key = W.week + '|' + players.length + '|' + (goalies || []).length; if (DR.pool && DR.pool.key === key) return DR.pool;
+  const TG = availTGP(), out = [];
+  trPool().forEach(x => { const p = x.p, gp = p.GP || 0, tg = Math.max(TG[p.team] || TG._avg || 1, gp, 1), f = 82 / tg;
+    const wc = gp > 0 ? 0.6 * Math.min(1, gp / 20) : 0, hasL = !!(p.lhas && p.lvec), wl = hasL ? 0.4 : 0; if (wc + wl <= 0) return;
+    const shrink = !hasL && gp < 20 ? 0.7 + 0.015 * gp : 1; let v, gaa = null, pos;
+    if (x.kind === 's') { const cur = [p.G, p.A, p.PM, (p.PPG || 0) + (p.PPA || 0), p.SOG, p.HIT, p.BLK].map(a => (a || 0) * f), L = hasL ? p.lvec.slice(0, 7) : null;
+      v = cur.map((a, i) => (wc * a + (L ? wl * L[i] : 0)) / (wc + wl) * shrink).concat([0, 0, 0, 0]); v[8] = null; pos = (p.elig || [p.pos]).filter(q => DR_SLOTS[q]); }
+    else { const cur = [p.W, p.SV, p.SO].map(a => (a || 0) * f), L = hasL ? p.lvec.slice(7, 10) : null; const [w, sv, so] = cur.map((a, i) => (wc * a + (L ? wl * L[i] : 0)) / (wc + wl) * shrink);
+      const g0 = p.GAA, g1 = hasL ? p.lgaa : null; gaa = g0 != null && g1 != null ? (wc * g0 + wl * g1) / (wc + wl) : g0 != null ? g0 : g1;
+      if (gaa == null) return; if (!hasL && gp < 20) gaa = gaa + (1 - shrink) * 1.0;   // small samples pulled toward a worse GAA
+      v = [0, 0, 0, 0, 0, 0, 0, w, gaa, sv, so]; pos = ['G']; }
+    if (!pos.length) return;
+    const lg = hasL && p.lgrade != null ? p.lgrade : null, bg = (wc * x.grade + (lg != null ? wl * lg : 0)) / (wc + (lg != null ? wl : 0));
+    out.push({k: x.k, x, name: x.name, team: x.team, kind: x.kind, pos, v, bg: Math.round(bg * 10) / 10, gp, hasL}); });
+  out.sort((a, b) => b.bg - a.bg); out.forEach((o, i) => o.rk = i + 1);
+  return DR.pool = {key, list: out, byK: new Map(out.map(o => [o.k, o]))};
+}
+function drSD(){
+  const KD = DATA.keyweeks, SD = {G: 3, A: 5, '+/-': 6, PPP: 3, SOG: 15, HIT: 15, BLK: 10, W: 1.5, GAA: 0.7, SV: 40, SHO: 0.7}; if (!KD) return SD;
+  DR_CATS.forEach(c => { let ss = 0, n = 0; const byT = {};
+    Object.values(KD.weeks).forEach(w => Object.entries(w.results || {}).forEach(([t, r]) => { const v = parseFloat(r[c]); if (!isNaN(v)) (byT[t] = byT[t] || []).push(v); }));
+    Object.values(byT).forEach(a => { if (a.length < 2) return; const m = a.reduce((x, y) => x + y, 0) / a.length; a.forEach(v => { ss += (v - m) ** 2; n++; }); n--; });
+    if (n > 3) SD[c] = Math.max(Math.sqrt(ss / n), c === 'GAA' ? 0.25 : 0.5); });
+  return SD;
+}
+function drAssign(list){   // drafted players into starting slots (fewest-position players first, best first); the rest to the bench
+  const open = Object.assign({}, DR_SLOTS), start = [], bench = [], fill = {};
+  list.slice().sort((a, b) => a.pos.length - b.pos.length || b.bg - a.bg).forEach(o => { const q = o.pos.filter(p => open[p] > 0).sort((a, b) => open[b] - open[a])[0];
+    if (q) { open[q]--; start.push(o); (fill[q] = fill[q] || []).push(o); } else bench.push(o); });
+  return {open, start, bench, fill};
+}
+function drVec(A, R){   // weekly team line: starters + expected fills for open spots + bench at 15%
+  const t = new Array(11).fill(0); let gw = 0, gs = 0;
+  const add = (v, w) => { for (let i = 0; i < 11; i++) if (i !== 8) t[i] += v[i] * w; if (v[8] != null && v[9] > 0) { gw += v[8] * v[9] * w; gs += v[9] * w; } };
+  A.start.forEach(o => add(o.v, 1)); A.bench.slice(0, DR_BN).forEach(o => add(o.v, DR_BENCH_W));
+  Object.entries(A.open).forEach(([p, n]) => { if (n > 0 && R[p]) for (let i = 0; i < n; i++) add(R[p], 1); });
+  const out = {}; DR_CATS.forEach((c, i) => out[c] = i === 8 ? (gs > 0 ? gw / gs : 3.2) : t[i] / DR_WEEKS); return out;
+}
+function drEW(me, opps, SD){   // expected category wins per matchup (all-play) and per-category win chance
+  const pc = {}; let ew = 0; DR_CATS.forEach(c => pc[c] = 0); if (!opps.length) return {ew: 0, pc};
+  opps.forEach(o => DR_CATS.forEach(c => { let z = (me[c] - o[c]) / (SD[c] * Math.SQRT2); if (c === 'GAA') z = -z; const p = tv2Phi(z); pc[c] += p / opps.length; ew += p / opps.length; }));
+  return {ew, pc};
+}
+function drAnalyze(){
+  const st = drLoad(), sig = st.updatedAt + '|' + st.picks.length + '|' + st.order.join(','); if (DR.cache && DR.cache.sig === sig) return DR.cache;
+  const P = drPool(), N = st.order.length, total = N * DR_ROUNDS, me = drMe(), SD = drSD();
+  const picks = st.picks.map(x => Object.assign({}, x, {o: P.byK.get(x.k)})), gone = new Set(st.picks.map(x => x.k));
+  const roster = {}; st.order.forEach(t => roster[t] = []); picks.forEach(x => { if (x.o && roster[x.t]) roster[x.t].push(x.o); });
+  const avail = P.list.filter(o => !gone.has(o.k)), A = {}; st.order.forEach(t => A[t] = drAssign(roster[t]));
+  const expFill = (av, Asg) => { const R = {}; Object.keys(DR_SLOTS).forEach(p => { const need = Object.values(Asg).reduce((s, a) => s + a.open[p], 0); if (!need) return;
+      const L = av.filter(o => o.pos.includes(p)).slice(0, need); if (!L.length) return; const v = new Array(11).fill(0); let gs = 0, gw = 0;
+      L.forEach(o => { for (let i = 0; i < 11; i++) if (i !== 8) v[i] += o.v[i] / L.length; if (o.v[8] != null) { gw += o.v[8] * o.v[9]; gs += o.v[9]; } }); v[8] = p === 'G' ? (gs ? gw / gs : 3.2) : null; R[p] = v; }); return R; };
+  const R = expFill(avail, A), vec = {}; st.order.forEach(t => vec[t] = drVec(A[t], R));
+  const opps = st.order.filter(t => t !== me).map(t => vec[t]), base = drEW(vec[me], opps, SD);
+  const n = picks.length + 1, done = n > total, onClock = done ? null : st.order[drSnake(n, N)];
+  let myNext = null; for (let k = n; k <= total; k++) if (st.order[drSnake(k, N)] === me) { myNext = k; break; }
+  let myAfter = null; if (myNext) for (let k = myNext + 1; k <= total; k++) if (st.order[drSnake(k, N)] === me) { myAfter = k; break; }
+  // who is likely gone before my next turn: each team in between takes the best player for an open starting spot (else the best player)
+  const simGone = (from, to) => { const g = new Set(), sim = {}; st.order.forEach(t => sim[t] = Object.assign({}, A[t].open));
+    for (let k = from; k < to; k++) { const t = st.order[drSnake(k, N)]; if (t === me) continue; const op = sim[t];
+      const c = avail.find(o => !g.has(o.k) && o.pos.some(p => op[p] > 0)) || avail.find(o => !g.has(o.k)); if (!c) break; g.add(c.k); const q = c.pos.find(p => op[p] > 0); if (q) op[q]--; }
+    return g; };
+  const myTurn = onClock === me, nextFrom = myTurn ? myNext + 1 : n, nextTo = myTurn ? myAfter : myNext;
+  const likelyGone = nextTo ? simGone(nextFrom, nextTo) : new Set();
+  // gain for each candidate (top 220 by blended grade, plus anything matching the board filter later)
+  const cand = avail.slice(0, 220), gain = new Map();
+  cand.forEach(o => { const A2 = drAssign(roster[me].concat([o])), v2 = drVec(A2, R); gain.set(o.k, drEW(v2, opps, SD).ew - base.ew); });
+  const nextBest = {}; Object.keys(DR_SLOTS).forEach(p => { const L = cand.filter(o => o.pos.includes(p) && !likelyGone.has(o.k)); nextBest[p] = L.length ? Math.max(...L.map(o => gain.get(o.k))) : 0; });
+  const score = new Map(); cand.forEach(o => { const g = gain.get(o.k), nb = Math.max(...o.pos.map(p => nextBest[p] || 0)); score.set(o.k, g + 0.5 * Math.max(0, g - nb)); });
+  const recs = cand.slice().sort((a, b) => score.get(b.k) - score.get(a.k)).slice(0, 5);
+  const openMe = A[me].open, tips = Object.keys(DR_SLOTS).filter(p => openMe[p] > 0).map(p => { const L = cand.filter(o => o.pos.includes(p)); const now = L.length ? Math.max(...L.map(o => gain.get(o.k))) : 0; return [p, now, nextBest[p] || 0, now - (nextBest[p] || 0)]; }).sort((a, b) => b[3] - a[3]);
+  const teamPc = {}; st.order.forEach(t => teamPc[t] = drEW(vec[t], st.order.filter(u => u !== t).map(u => vec[u]), SD));
+  return DR.cache = {sig, P, N, total, me, picks, roster, A, avail, n, done, onClock, myNext, myAfter, likelyGone, gain, score, recs, tips, base, teamPc, R};
+}
+const drShort = t => { const n = tc(t); return n.length > 16 ? n.replace(/^The /, '').split(' ').map((w, i) => i ? w[0] + '.' : w).join(' ') : n; };
+const drPos = o => o.kind === 'g' ? 'G' : o.pos.join('/');
+const drG = g => `${g >= 0 ? '+' : '−'}${Math.abs(g).toFixed(2)}`;
+function drRowsHTML(D){
+  const q = nrm(DR.q || ''), gone = new Set(D.picks.map(x => x.k)), who = new Map(D.picks.map(x => [x.k, x]));
+  let L = D.P.list;
+  if (DR.pos === 'Mine') L = L.filter(o => who.has(o.k) && who.get(o.k).t === D.me);
+  else if (DR.pos === 'Taken') L = L.filter(o => gone.has(o.k));
+  else L = L.filter(o => !gone.has(o.k) && (DR.pos === 'All' || o.pos.includes(DR.pos)));
+  if (q) L = L.filter(o => nrm(o.name).includes(q));
+  if ((state.drsort || 'rec') === 'rec' && !['Mine', 'Taken'].includes(DR.pos)) L = L.slice().sort((a, b) => (D.score.has(b.k) ? D.score.get(b.k) : -9) - (D.score.has(a.k) ? D.score.get(a.k) : -9) || b.bg - a.bg);
+  const tot = L.length; L = L.slice(0, 120);
+  const btn = o => D.done || gone.has(o.k) ? '' : `<button class="btn ${D.onClock === D.me ? '' : 'ghost'} drpk" data-drpick="${esc(o.k)}" title="Record this pick for ${esc(tc(D.onClock))}">${D.onClock === D.me ? 'Draft' : 'Taken'}</button>`;
+  const rows = L.map(o => { const g = D.gain.get(o.k), w = who.get(o.k);
+    return `<div class="drr${w && w.t === D.me ? ' mine' : ''}"><span class="drn">${o.rk}</span><div class="drnm"><b data-${o.kind === 'g' ? 'gl' : 'pl'}="${o.x.p.id}">${esc(o.name)}</b>${D.likelyGone.has(o.k) ? '<span class="drlg" title="Likely taken before your next pick">likely gone</span>' : ''}<div class="muted">${o.team} · ${drPos(o)} · ${o.gp} GP${o.hasL ? '' : ' · no 2025-26'}${w ? ` · pick ${w.n} · ${esc(tc(w.t))}` : ''}</div></div>${g != null && !w ? `<span class="drg ${g > 0.0005 ? 'pos' : 'muted'}" title="Gain in expected category wins per matchup">${drG(g)}</span>` : ''}<span class="trg" style="background:${gHue(o.bg)}">${o.bg.toFixed(1)}</span>${btn(o)}</div>`; }).join('');
+  return (rows || '<p class="muted" style="margin:8px 0">Nobody here.</p>') + (tot > L.length ? `<p class="muted" style="font-size:12px;margin:8px 0 0">Showing ${L.length} of ${tot}. Type a name or pick a position to narrow it.</p>` : '');
+}
+function drPage(modeBtns){
+  drConnect(); const st = drLoad(), D = drAnalyze(), T = drTeams(), me = D.me, N = D.N;
+  const mySpot = st.order.indexOf(me) + 1, rnd = k => Math.ceil(k / N);
+  const myPicks = []; for (let k = 1; k <= D.total; k++) if (st.order[drSnake(k, N)] === me) myPicks.push(k);
+  const orderHTML = `<details class="drd" ${st.picks.length ? '' : 'open'}><summary>Draft order · ${N} teams · snake · ${DR_ROUNDS} rounds</summary>
+    <div class="ctrls" style="margin:8px 0"><label class="lb">Your pick spot <select id="drspot">${T.map((t, i) => `<option value="${i}" ${i + 1 === mySpot ? 'selected' : ''}>${i + 1}</option>`).join('')}</select></label><span class="muted">Your picks: ${myPicks.slice(0, 6).map(k => '#' + k).join(', ')}…</span></div>
+    <div class="drord">${st.order.map((t, i) => `<label class="lb">${i + 1}. <select data-drord="${i}">${T.map(u => `<option value="${esc(u)}" ${u === t ? 'selected' : ''}>${esc(tc(u))}</option>`).join('')}</select></label>`).join('')}</div>
+    <p class="muted" style="font-size:12px;margin:6px 0 0">Picking the same team twice swaps the two spots. ${st.picks.length ? 'Changing the order now does not move picks already made.' : ''}</p></details>`;
+  const away = D.myNext ? D.myNext - D.n : null, myTurn = D.onClock === me;
+  const clock = D.done ? `<div class="drclk"><div><span class="muted">Draft</span><b>Complete</b></div></div>` : `<div class="drclk">
+      <div><span class="muted">Pick ${D.n} · round ${rnd(D.n)}</span><b>${esc(tc(D.onClock))}</b><span class="muted">on the clock</span></div>
+      <div class="${myTurn ? 'on' : ''}"><span class="muted">${myTurn ? 'Your pick' : 'Your next pick'}</span><b>${myTurn ? 'Now' : D.myNext ? '#' + D.myNext : '–'}</b><span class="muted">${myTurn ? (D.myAfter ? 'then #' + D.myAfter : 'last pick') : away != null ? away + ' pick' + (away === 1 ? '' : 's') + ' away' : 'no picks left'}</span></div></div>`;
+  const tools = `<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">${st.picks.length ? `<button class="btn ghost" id="drundo">↩ Undo last pick</button>` : ''}<button class="btn ghost" id="drreset" style="margin-left:auto">${DR.resetArm ? 'Tap again to clear the draft' : 'Reset draft'}</button></div>`;
+  const why = o => { const a = D.A[me], q = o.pos.filter(p => a.open[p] > 0); return q.length ? `fills ${q.join(' or ')}` : 'bench depth'; };
+  const recs = D.done ? '' : `<div class="card"><h2>${myTurn ? '🎯 Take one of these' : '🎯 Best for you right now'}</h2><p class="muted" style="margin:-4px 0 8px;font-size:12.5px">Gain = extra category wins per matchup for The Scalawags against the other ${N - 1} teams' projected lineups.${myTurn ? '' : ` Updated after every pick; your turn is ${away} pick${away === 1 ? '' : 's'} away.`}</p>
+    ${D.recs.map((o, i) => `<div class="drrec"><span class="drk">${i + 1}</span><div class="drnm"><b data-${o.kind === 'g' ? 'gl' : 'pl'}="${o.x.p.id}">${esc(o.name)}</b> <span class="muted">${o.team} · ${drPos(o)}</span><div class="muted">${why(o)} · gain ${drG(D.gain.get(o.k))}${D.likelyGone.has(o.k) ? ' · <span class="neg">likely gone before your next pick</span>' : D.myNext && !myTurn ? ' · likely still there' : ''}</div></div><span class="trg" style="background:${gHue(o.bg)}">${o.bg.toFixed(1)}</span>${myTurn ? `<button class="btn drpk" data-drpick="${esc(o.k)}">Draft</button>` : ''}</div>`).join('') || '<p class="muted">No players left.</p>'}</div>`;
+  const A = D.A[me], need = Object.keys(DR_SLOTS).map(p => [p, DR_SLOTS[p] - A.open[p], DR_SLOTS[p]]).concat([['BN', Math.min(DR_BN, A.bench.length), DR_BN]]);
+  const t0 = D.tips[0], tip = !t0 ? 'Starting spots are filled: take the best player left for the bench.' : t0[3] > 0.02 ? `Fill next: <b>${t0[0]}</b>. Best ${t0[0]} now is worth ${drG(t0[1])}; at your next pick probably only ${drG(t0[2])}.` : `No position is running out before your next pick: take the best player available.`;
+  const mine = D.roster[me];
+  const needs = `<div class="card"><h2>🧩 Your roster</h2><div class="drneed">${need.map(([p, f, n]) => `<div class="${f >= n ? 'ok' : ''}">${p}<b>${f}/${n}</b></div>`).join('')}</div><p style="margin:10px 0 0;font-size:13.5px">${tip}</p>
+    ${mine.length ? `<div class="drmine">${mine.map(o => `<span>${esc(o.name)} <i>${drPos(o)}</i></span>`).join('')}</div>` : ''}</div>`;
+  const pc = D.base.pc, cats = `<div class="card"><h2>📊 Your category win chance</h2><p class="muted" style="margin:-4px 0 8px;font-size:12.5px">Average over the other ${N - 1} teams as drafted so far (open spots filled with expected picks). Expected category wins per matchup: <b>${D.base.ew.toFixed(2)}</b> of ${DR_CATS.length}.</p>
+    ${DR_CATS.map(c => { const v = pc[c], d = v - 0.5, w = Math.min(50, Math.abs(d) * 100); return `<div class="drbar"><span>${c}</span><div><i style="left:${d >= 0 ? 50 : 50 - w}%;width:${w}%;background:${d >= 0 ? 'var(--green,#1d6b4a)' : 'var(--red)'}"></i></div><b>${Math.round(v * 100)}%</b></div>`; }).join('')}</div>`;
+  const board = `<div class="card"><h2>📋 Draft board</h2><p class="muted" style="margin:-4px 0 8px;font-size:12.5px">Every skater and goalie, ranked by draft grade (60% latest season, 40% the season before). Tap “Taken” when another team picks a player (it goes to the team on the clock), or “Draft” on your turn.</p>
+    <div class="ctrls" style="margin-bottom:6px"><input type="search" id="drq" placeholder="Filter by name" value="${esc(DR.q)}" style="flex:1;min-width:160px">${seg('drsort', [['rec', 'Best for you'], ['grade', 'Draft grade']], state.drsort || 'rec')}</div>
+    <div class="trpk-ch" id="drpos">${['All', 'C', 'LW', 'RW', 'D', 'G', 'Mine', 'Taken'].map(p => `<span class="trpk-c${p === DR.pos ? ' on' : ''}" data-drpos="${p}">${p}</span>`).join('')}</div>
+    <div id="drrows">${drRowsHTML(D)}</div></div>`;
+  const lg = `<div class="card"><h2>🏒 League rosters</h2><p class="muted" style="margin:-4px 0 8px;font-size:12.5px">Each team's picks and where its projected lineup stands out (category win chance against the rest of the league).</p>
+    ${st.order.map(t => { const pc = D.teamPc[t].pc, srt = DR_CATS.slice().sort((a, b) => pc[b] - pc[a]), r = D.roster[t];
+      return `<details class="drd"><summary>${esc(tc(t))}${t === me ? ' (you)' : ''} <span class="muted">· ${r.length} picks · strong ${srt.slice(0, 2).join(', ')} · weak ${srt.slice(-2).join(', ')}</span></summary>${r.length ? `<div class="drmine">${r.map(o => `<span>${esc(o.name)} <i>${drPos(o)}</i></span>`).join('')}</div>` : '<p class="muted" style="margin:6px 0">No picks yet.</p>'}</details>`; }).join('')}</div>`;
+  const log = st.picks.length ? `<div class="card"><h2>🧾 Draft log</h2><div class="tw"><table class="t" style="font-size:13px"><thead><tr><th>PICK</th><th class="l">TEAM</th><th class="l">PLAYER</th><th></th></tr></thead><tbody>${D.picks.slice().reverse().map(x => `<tr${x.t === me ? ' class="hlme"' : ''}><td>${x.n} <span class="muted">(R${rnd(x.n)})</span></td><td class="l"><select data-drteam="${x.n}">${T.map(u => `<option value="${esc(u)}" ${u === x.t ? 'selected' : ''}>${esc(drShort(u))}</option>`).join('')}</select></td><td class="l">${x.o ? esc(x.o.name) + ` <span class="muted">${drPos(x.o)}</span>` : esc(x.k.split('|')[1] || x.k)}</td><td><button class="trx" data-drdel="${x.n}" aria-label="Remove pick">×</button></td></tr>`).join('')}</tbody></table></div>
+    <p class="muted" style="font-size:12px;margin:6px 0 0">Change the team on a pick if it was traded or made out of turn. Removing a pick moves the later picks up one spot.</p></div>` : '';
+  return phead('🔒 Safe · Draft board', 'Safe', 'Snake draft assistant: set the draft order, then record every pick as it happens. The advice adapts after each one.') +
+    `<div class="card"><div style="margin-bottom:12px">${modeBtns}</div>${orderHTML}${clock}${tools}</div>${recs}<div class="grid g2" style="gap:16px">${needs}${cats}</div>${board}${lg}${log}`;
+}
+function drAfter(){
+  const st = drLoad(), redraw = () => { DR.cache = null; render(); };
+  const sp = $('#drspot'); if (sp) sp.onchange = e => { const i = +e.target.value, me = drMe(), j = st.order.indexOf(me); [st.order[i], st.order[j]] = [st.order[j], st.order[i]]; drSave(); redraw(); };
+  document.querySelectorAll('[data-drord]').forEach(s => s.onchange = e => { const i = +s.dataset.drord, t = e.target.value, j = st.order.indexOf(t); [st.order[i], st.order[j]] = [st.order[j], st.order[i]]; drSave(); redraw(); });
+  document.querySelectorAll('[data-drteam]').forEach(s => s.onchange = e => { const p = st.picks.find(x => x.n === +s.dataset.drteam); if (p) { p.t = e.target.value; drSave(); redraw(); } });
+  document.querySelectorAll('[data-drdel]').forEach(b => b.onclick = () => { const n = +b.dataset.drdel; st.picks = st.picks.filter(x => x.n !== n).map((x, i) => Object.assign(x, {n: i + 1})); drSave(); redraw(); });
+  const u = $('#drundo'); if (u) u.onclick = () => { st.picks.pop(); drSave(); redraw(); };
+  const r = $('#drreset'); if (r) r.onclick = () => { if (!DR.resetArm) { DR.resetArm = true; r.textContent = 'Tap again to clear the draft'; setTimeout(() => { DR.resetArm = false; const x = $('#drreset'); if (x) x.textContent = 'Reset draft'; }, 4000); return; } DR.resetArm = false; st.picks = []; drSave(); redraw(); };
+  const rows = () => { const el = $('#drrows'); if (el) el.innerHTML = drRowsHTML(drAnalyze()); };
+  const q = $('#drq'); if (q) q.oninput = e => { DR.q = e.target.value; rows(); };
+  const ch = $('#drpos'); if (ch) ch.onclick = e => { const c = e.target.closest('[data-drpos]'); if (!c) return; DR.pos = c.dataset.drpos; ch.querySelectorAll('.trpk-c').forEach(x => x.classList.toggle('on', x === c)); rows(); };
+  if (!DR.bound) { DR.bound = true; document.addEventListener('click', drPickClick, true); }
+}
+function drPickClick(e){
+  const b = e.target.closest('[data-drpick]'); if (!b || !(SAFE_OK && state.sfMode === 'draft')) return; e.stopPropagation();
+  const st = drLoad(), D = drAnalyze(); if (D.done || st.picks.some(x => x.k === b.dataset.drpick)) return;
+  st.picks.push({n: st.picks.length + 1, t: D.onClock, k: b.dataset.drpick}); drSave(); DR.cache = null; render();
+}
+
+V.safe = () => SAFE_OK ? state.sfMode === 'draft' ? drPage(seg('sfMode', SF_MODES, 'draft')) : V.safeTrade() + (['sugg', 'wpick'].includes(state.sfMode) ? sfFinderPart(state.sfMode) : '') : `<div class="card" style="max-width:420px;margin:40px auto;text-align:center;padding:30px 24px;border-top:4px solid var(--gold)">
   <div style="font-size:40px">🔒</div><h2 style="justify-content:center;margin:6px 0 4px">Safe</h2><p class="muted" style="margin:0 0 16px">This page is locked. Enter the password to continue.</p>
   <form id="safeform" autocomplete="off" style="display:flex;gap:8px;justify-content:center"><input type="password" id="safepw" inputmode="numeric" placeholder="Password" style="max-width:180px;text-align:center;letter-spacing:.3em" aria-label="Password"><button class="btn" type="submit">Unlock</button></form>
   <p id="safeerr" class="neg" style="margin:10px 0 0;min-height:18px;font-size:13px"></p></div>`;
-V.safe.after = () => { if (SAFE_OK) { V.safeTrade.after();
+V.safe.after = () => { if (SAFE_OK) { if (state.sfMode === 'draft') { drAfter(); return; } V.safeTrade.after();
     const nd = $('#sfnodrop'); if (nd) nd.onchange = e => { state.sf.noDrop = e.target.checked; render(); };
     const ng = $('#sfgoal'); if (ng) ng.onchange = e => { state.sf.noGoal = !e.target.checked; render(); };
     const np = $('#sfpunt'); if (np) np.onchange = e => { state.sf.punt = e.target.checked; render(); };
