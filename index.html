@@ -2670,6 +2670,7 @@ function sfFinderPart(part){   // Suggested trades / Waiver wire pickups tabs: o
    every other team's projected lineup (all-play), adjusted for who is likely gone before your next pick. */
 const DR_SLOTS = {C: 2, LW: 2, RW: 2, D: 4, G: 2}, DR_BN = 4, DR_ROUNDS = 16, DR_BENCH_W = 0.15, DR_WEEKS = 24;
 const DR_CATS = ['G', 'A', '+/-', 'PPP', 'SOG', 'HIT', 'BLK', 'W', 'GAA', 'SV', 'SHO'];
+const DR_GW = 0.45;   // goalie discount: goalie seasons are the least predictable, and starters are plentiful
 const DR_REL = [0.75, 0.75, 0.3, 0.7, 0.85, 0.85, 0.85, 0.5, 0.3, 0.6, 0.3];   // how much of a player's edge carries over to next season, per category
 const DR = {st: null, db: null, dbTried: false, pos: 'All', q: '', sort: 'rec', resetArm: false, cache: null};
 const drTeams = () => (DATA.league && DATA.league.keys) || (DATA.rosters ? Object.keys(DATA.rosters.teams) : []);
@@ -2710,7 +2711,13 @@ function drPool(){   // blended season projection per player: [G, A, +/-, PPP, S
       if (gaa == null) return; if (!hasL && gp < 20) gaa = gaa + (1 - shrink) * 1.0;   // small samples pulled toward a worse GAA
       v = [0, 0, 0, 0, 0, 0, 0, w, gaa, sv, so]; pos = ['G']; }
     if (!pos.length) return;
-    const lg = hasL && p.lgrade != null ? p.lgrade : null, bg = (wc * x.grade + (lg != null ? wl * lg : 0)) / (wc + (lg != null ? wl : 0));
+    // forecast: the expected per-game rates (this season blended with past seasons) over a full season, times expected availability
+    let fc = null; try { const e = sfExpect(x), R = e.rates || {}, PR = DATA.pastRates || {sk: {}, gl: {}};
+      if (x.kind === 's') { const h = PR.sk[jsNorm(p.name) + '|' + (p.pos0 === 'D' ? 'D' : 'F')], cu = Math.min(1, gp / tg), ph = h ? Math.min(1, h[0] / 164) : null;
+        const av = Math.max(0.5, Math.min(1, ph != null ? (gp * cu + 40 * ph) / (gp + 40) : cu)); fc = ['G', 'A', 'PM', 'PPP', 'SOG', 'HIT', 'BLK'].map(k => (R[k] || 0) * 82 * av).concat([0, null, 0, 0]); }
+      else { const sh = Math.max(0, Math.min(0.85, p.share != null ? p.share : gp / tg)), gb = gBlendGAA(p); if (gb != null) fc = [0, 0, 0, 0, 0, 0, 0, (R.W || 0) * 82 * sh, gb, (R.SV || 0) * 82 * sh, (R.SO || 0) * 82 * sh]; } } catch (e) {}
+    if (fc) v = v.map((a, i) => a == null || fc[i] == null ? a : 0.5 * a + 0.5 * fc[i]);
+    const lg = hasL && p.lgrade != null ? p.lgrade : null, sb = (wc * x.grade + (lg != null ? wl * lg : 0)) / (wc + (lg != null ? wl : 0)), bg = p.egrade != null ? 0.5 * sb + 0.5 * p.egrade : sb;
     out.push({k: x.k, x, name: x.name, team: x.team, kind: x.kind, pos, v, bg: Math.round(bg * 10) / 10, gp, hasL}); });
   out.sort((a, b) => b.bg - a.bg); out.forEach((o, i) => o.rk = i + 1);
   // shrink each projection toward its group's average by how well the category repeats from season to season
@@ -2719,6 +2726,14 @@ function drPool(){   // blended season projection per player: [G, A, +/-, PPP, S
     L.forEach(o => { for (let i = 0; i < 11; i++) if (i !== 8) v[i] += o.v[i] / L.length; if (o.v[8] != null) { gw += o.v[8] * o.v[9]; gs += o.v[9]; } }); v[8] = gs ? gw / gs : null; avg[g] = v; });
   out.forEach(o => { const m = avg[grp(o)]; if (!m) return; o.raw = o.v; o.v = o.v.map((x, i) => x == null || m[i] == null ? x : m[i] + DR_REL[i] * (x - m[i])); });
   return DR.pool = {key, list: out, byK: new Map(out.map(o => [o.k, o]))};
+}
+function D_POOLZ(P){   // value per player = sum of category z-scores in the draftable pool, scaled by how much one roster spot moves a team total
+  if (P._z) return P._z; const top = P.list.slice(0, 160), sk = top.filter(o => o.kind === 's'), gl = top.filter(o => o.kind === 'g'), z = new Map();
+  const ms = (L, i) => { const a = L.map(o => o.v[i]).filter(v => v != null), m = a.reduce((x, y) => x + y, 0) / Math.max(1, a.length); return [m, Math.sqrt(a.reduce((s, v) => s + (v - m) ** 2, 0) / Math.max(1, a.length - 1)) || 1]; };
+  const S = [0, 1, 2, 3, 4, 5, 6].map(i => ms(sk, i)), G = [7, 8, 9, 10].map(i => ms(gl, i));
+  P.list.forEach(o => { let t = 0; if (o.kind === 's') { S.forEach(([m, sd], i) => t += (o.v[i] - m) / sd); t /= Math.sqrt(10); }
+    else { G.forEach(([m, sd], j) => { const i = 7 + j; if (o.v[i] != null) t += (i === 8 ? -1 : 1) * (o.v[i] - m) / sd; }); t /= Math.sqrt(2); } z.set(o.k, t); });
+  return P._z = z;
 }
 function drSD(){
   const KD = DATA.keyweeks, SD = {G: 3, A: 5, '+/-': 6, PPP: 3, SOG: 15, HIT: 15, BLK: 10, W: 1.5, GAA: 0.7, SV: 40, SHO: 0.7}; if (!KD) return SD;
@@ -2771,11 +2786,19 @@ function drAnalyze(){
   const cand = avail.slice(0, 220), gain = new Map();
   cand.forEach(o => { const A2 = drAssign(roster[me].concat([o])), v2 = drVec(A2, R); gain.set(o.k, drEW(v2, opps, SD).ew - base.ew); });
   const nextBest = {}; Object.keys(DR_SLOTS).forEach(p => { const L = cand.filter(o => o.pos.includes(p) && !likelyGone.has(o.k)); nextBest[p] = L.length ? Math.max(...L.map(o => gain.get(o.k))) : 0; });
-  const score = new Map(); cand.forEach(o => { const g = gain.get(o.k), nb = Math.max(...o.pos.map(p => nextBest[p] || 0)); score.set(o.k, Math.max(0, g - nb) + 0.35 * g); });   // value lost by waiting until your next pick, plus a share of the raw gain
+  const fit = new Map(); cand.forEach(o => { const g = gain.get(o.k), nb = Math.max(...o.pos.map(p => nextBest[p] || 0)); fit.set(o.k, (Math.max(0, g - nb) + 0.35 * g) * (o.kind === 'g' ? DR_GW : 1)); });   // team fit: matchup gain lost by waiting
+  // player value: category z-scores against the draftable pool (how rare the production is), above what the league still needs at that position
+  const pool = D_POOLZ(P), zv = o => pool.get(o.k) || 0, need = {}; Object.keys(DR_SLOTS).forEach(p => need[p] = st.order.reduce((a, t) => a + A[t].open[p], 0));
+  const repl = {}; Object.keys(DR_SLOTS).forEach(p => { const L = avail.filter(o => o.pos.includes(p)).map(zv).sort((a, b) => b - a); repl[p] = L.length ? L[Math.min(L.length - 1, Math.max(0, need[p]))] : 0; });
+  const vor = o => Math.max(...o.pos.map(p => zv(o) - repl[p]));
+  const nbV = {}; Object.keys(DR_SLOTS).forEach(p => { const L = cand.filter(o => o.pos.includes(p) && !likelyGone.has(o.k)); nbV[p] = L.length ? Math.max(...L.map(vor)) : 0; });
+  const val = new Map(); cand.forEach(o => { const v = vor(o), nb = Math.max(...o.pos.map(p => nbV[p] || 0)); val.set(o.k, (Math.max(0, v - nb) + 0.35 * Math.max(0, v)) * (o.kind === 'g' ? DR_GW : 1)); });
+  const mxF = Math.max(1e-6, ...fit.values()), mxV = Math.max(1e-6, ...val.values()), nMine = roster[me].length, wFit = Math.min(0.8, 0.3 + 0.5 * nMine / DR_ROUNDS);   // early: player value leads; later: team fit leads
+  const score = new Map(); cand.forEach(o => score.set(o.k, (1 - wFit) * val.get(o.k) / mxV + wFit * fit.get(o.k) / mxF));
   const recs = cand.slice().sort((a, b) => score.get(b.k) - score.get(a.k)).slice(0, 5);
   const openMe = A[me].open, tips = Object.keys(DR_SLOTS).filter(p => openMe[p] > 0).map(p => { const L = cand.filter(o => o.pos.includes(p)); const now = L.length ? Math.max(...L.map(o => gain.get(o.k))) : 0; return [p, now, nextBest[p] || 0, now - (nextBest[p] || 0)]; }).sort((a, b) => b[3] - a[3]);
   const teamPc = {}; st.order.forEach(t => teamPc[t] = drEW(vec[t], st.order.filter(u => u !== t).map(u => vec[u]), SD));
-  return DR.cache = {sig, P, N, total, me, picks, roster, A, avail, n, done, onClock, myNext, myAfter, likelyGone, gain, score, recs, tips, base, teamPc, R};
+  return DR.cache = {sig, P, N, total, me, picks, roster, A, avail, n, done, onClock, myNext, myAfter, likelyGone, gain, score, recs, fit, val, repl, tips, base, teamPc, R};
 }
 const drShort = t => { const n = tc(t); return n.length > 16 ? n.replace(/^The /, '').split(' ').map((w, i) => i ? w[0] + '.' : w).join(' ') : n; };
 const drPos = o => o.kind === 'g' ? 'G' : o.pos.join('/');
@@ -2808,7 +2831,7 @@ function drPage(modeBtns){
       <div class="${myTurn ? 'on' : ''}"><span class="muted">${myTurn ? 'Your pick' : 'Your next pick'}</span><b>${myTurn ? 'Now' : D.myNext ? '#' + D.myNext : '–'}</b><span class="muted">${myTurn ? (D.myAfter ? 'then #' + D.myAfter : 'last pick') : away != null ? away + ' pick' + (away === 1 ? '' : 's') + ' away' : 'no picks left'}</span></div></div>`;
   const tools = `<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">${st.picks.length ? `<button class="btn ghost" id="drundo">↩ Undo last pick</button>` : ''}<button class="btn ghost" id="drreset" style="margin-left:auto">${DR.resetArm ? 'Tap again to clear the draft' : 'Reset draft'}</button></div>`;
   const why = o => { const a = D.A[me], q = o.pos.filter(p => a.open[p] > 0); return q.length ? `fills ${q.join(' or ')}` : 'bench depth'; };
-  const recs = D.done ? '' : `<div class="card"><h2>${myTurn ? '🎯 Take one of these' : '🎯 Best for you right now'}</h2><p class="muted" style="margin:-4px 0 8px;font-size:12.5px">Ranked by what you would lose by waiting: gain now minus the best you can likely still get at that position at your next pick. Gain = extra category wins per matchup against the other ${N - 1} teams' projected lineups.${myTurn ? '' : ` Updated after every pick; your turn is ${away} pick${away === 1 ? '' : 's'} away.`}</p>
+  const recs = D.done ? '' : `<div class="card"><h2>${myTurn ? '🎯 Take one of these' : '🎯 Best for you right now'}</h2><p class="muted" style="margin:-4px 0 8px;font-size:12.5px">Ranked by player value (how rare his production is in the draft pool) and team fit (extra category wins per matchup against the other ${N - 1} teams), each measured as what you would lose by waiting until your next pick. Value leads early; fit counts more as your roster fills.${myTurn ? '' : ` Updated after every pick; your turn is ${away} pick${away === 1 ? '' : 's'} away.`}</p>
     ${D.recs.map((o, i) => `<div class="drrec"><span class="drk">${i + 1}</span><div class="drnm"><b data-${o.kind === 'g' ? 'gl' : 'pl'}="${o.x.p.id}">${esc(o.name)}</b> <span class="muted">${o.team} · ${drPos(o)}</span><div class="muted">${why(o)} · gain ${drG(D.gain.get(o.k))}${D.likelyGone.has(o.k) ? ' · <span class="neg">likely gone before your next pick</span>' : D.myNext && !myTurn ? ' · likely still there' : ''}</div></div><span class="trg" style="background:${gHue(o.bg)}">${o.bg.toFixed(1)}</span>${myTurn ? `<button class="btn drpk" data-drpick="${esc(o.k)}">Draft</button>` : ''}</div>`).join('') || '<p class="muted">No players left.</p>'}</div>`;
   const A = D.A[me], need = Object.keys(DR_SLOTS).map(p => [p, DR_SLOTS[p] - A.open[p], DR_SLOTS[p]]).concat([['BN', Math.min(DR_BN, A.bench.length), DR_BN]]);
   const t0 = D.tips[0], tip = !t0 ? 'Starting spots are filled: take the best player left for the bench.' : t0[3] > 0.02 ? `Fill next: <b>${t0[0]}</b>. Best ${t0[0]} now is worth ${drG(t0[1])}; at your next pick probably only ${drG(t0[2])}.` : `No position is running out before your next pick: take the best player available.`;
@@ -2817,7 +2840,7 @@ function drPage(modeBtns){
     ${mine.length ? `<div class="drmine">${mine.map(o => `<span>${esc(o.name)} <i>${drPos(o)}</i></span>`).join('')}</div>` : ''}</div>`;
   const pc = D.base.pc, cats = `<div class="card"><h2>📊 Your category win chance</h2><p class="muted" style="margin:-4px 0 8px;font-size:12.5px">Average over the other ${N - 1} teams as drafted so far (open spots filled with expected picks). Expected category wins per matchup: <b>${D.base.ew.toFixed(2)}</b> of ${DR_CATS.length}.</p>
     ${DR_CATS.map(c => { const v = pc[c], d = v - 0.5, w = Math.min(50, Math.abs(d) * 100); return `<div class="drbar"><span>${c}</span><div><i style="left:${d >= 0 ? 50 : 50 - w}%;width:${w}%;background:${d >= 0 ? 'var(--green,#1d6b4a)' : 'var(--red)'}"></i></div><b>${Math.round(v * 100)}%</b></div>`; }).join('')}</div>`;
-  const board = `<div class="card"><h2>📋 Draft board</h2><p class="muted" style="margin:-4px 0 8px;font-size:12.5px">Every skater and goalie, ranked by draft grade (60% latest season, 40% the season before). Tap “Taken” when another team picks a player (it goes to the team on the clock), or “Draft” on your turn.</p>
+  const board = `<div class="card"><h2>📋 Draft board</h2><p class="muted" style="margin:-4px 0 8px;font-size:12.5px">Every skater and goalie, ranked by draft grade (half the two-season blend: 60% latest season, 40% the season before; half the forecast). Tap “Taken” when another team picks a player (it goes to the team on the clock), or “Draft” on your turn.</p>
     <div class="ctrls" style="margin-bottom:6px"><input type="search" id="drq" placeholder="Filter by name" value="${esc(DR.q)}" style="flex:1;min-width:160px">${seg('drsort', [['rec', 'Best for you'], ['grade', 'Draft grade']], state.drsort || 'rec')}</div>
     <div class="trpk-ch" id="drpos">${['All', 'C', 'LW', 'RW', 'D', 'G', 'Mine', 'Taken'].map(p => `<span class="trpk-c${p === DR.pos ? ' on' : ''}" data-drpos="${p}">${p}</span>`).join('')}</div>
     <div id="drrows">${drRowsHTML(D)}</div></div>`;
