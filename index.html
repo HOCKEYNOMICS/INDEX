@@ -1953,7 +1953,7 @@ function trSheet(pfx, s, sides, allow){
       const row = x => { const o = own.get(x.p), t = st(x), on = mine.has(x.k);
         return `<div class="trpk-r${on ? ' on' : ''}" data-trk="${esc(x.k)}"><span class="trpk-ck">${on ? '✓' : ''}</span><div class="trpk-nm"><b>${esc(x.name)}</b>${t ? ` <span class="trpk-st">${esc(t)}</span>` : ''}<div class="muted">${x.team} · ${x.kind === 'g' ? 'G' : x.tag} · ${x.p.GP} GP${!teamPick && DATA.rosters ? ` · ${o ? esc(tc(o)) : 'free agent'}` : ''}</div></div><span class="trg" style="background:${gHue(x.grade)}">${x.grade.toFixed(1)}</span></div>`; };
       let h = '';
-      if (teamPick) POS.forEach(g => { const G = m.filter(x => (posOf(x)[0] || (x.kind === 'g' ? 'G' : 'C')) === g); if (G.length) h += `<div class="trpk-g">${PN[g]}</div>` + G.map(row).join(''); });
+      if (teamPick) POS.forEach(g => { const G = m.filter(x => { const P = posOf(x); return P.length ? P.includes(g) : g === (x.kind === 'g' ? 'G' : 'C'); }); if (G.length) h += `<div class="trpk-g">${PN[g]}</div>` + G.map(row).join(''); });
       else h = (wirePick && !q ? '<div class="trpk-g">Top free agents · type a name to search all</div>' : '') + m.map(row).join('');
       const sy = L.scrollTop; L.innerHTML = h || `<div class="muted" style="padding:10px 2px">${!teamPick && !wirePick && !q ? 'Type a name to find a player.' : 'No match.'}</div>`;
       L.scrollTop = sy; N.textContent = `${mine.size} selected`; };
