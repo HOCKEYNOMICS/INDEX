@@ -561,6 +561,8 @@ table.mx{border-collapse:separate;border-spacing:3px;font-size:12px;background:#
 .trpk-st{font-size:10.5px;font-weight:700;color:var(--red);border:1px solid var(--red);border-radius:4px;padding:0 4px;margin-left:4px}
 .trpk-r .trg{font:500 12px Oswald;color:#fff;border-radius:5px;padding:2px 7px}
 .trpk-done{width:100%;margin-top:10px;justify-content:center}
+.drlet{display:inline-block;min-width:30px;text-align:center;color:#fff;font:500 13px Oswald;border-radius:6px;padding:1px 6px}
+.drgl{margin:6px 0 0;padding-left:18px;font-size:13px}.drgl li{margin:3px 0}
 .drd>summary{cursor:pointer;font-weight:600;font-size:13.5px;padding:6px 0}
 .drord{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px 12px}.drord select{max-width:none;width:100%}
 .drclk{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}.drclk>div{background:var(--ice);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column}.drclk b{font-family:Oswald;font-size:20px;font-weight:500;color:var(--navy)}.drclk span{font-size:12px}
@@ -2682,20 +2684,57 @@ function drLoad(){
   if (!st || !Array.isArray(st.order) || st.order.length !== T.length || !T.every(t => st.order.includes(t))) st = {order: [drMe()].concat(T.filter(t => t !== drMe())), picks: [], updatedAt: ''};
   return DR.st = st;
 }
+function drSaveNote(){ const el = $('#drsave'); if (el) el.innerHTML = drSaveHTML(); }
+function drSaveHTML(){ const k = DR.save || (DR.db ? 'saved' : DR.dbTried ? 'local' : '');
+  return k === 'saved' ? '<span class="pos">✓ Saved to the site database</span>' : k === 'saving' ? '<span class="muted">Saving…</span>' : k === 'local' ? '<span class="muted">Saved on this device only (database not reachable here)</span>' : k.startsWith('error') ? `<span class="neg">Not saved to the database (${esc(k.slice(6) || 'error')}). Kept on this device.</span>` : ''; }
+function drPush(){
+  const st = DR.st; if (!DR.db) { DR.save = 'local'; drSaveNote(); return; }
+  DR.save = 'saving'; drSaveNote();
+  DR.db.doc('keydesk/draft').set({order: st.order, picks: st.picks, updatedAt: st.updatedAt}).then(() => { DR.save = 'saved'; drSaveNote(); }).catch(e => { DR.save = 'error:' + ((e && (e.code || e.message)) || 'error'); drSaveNote(); });
+}
 function drSave(){
   const st = DR.st; st.updatedAt = new Date().toISOString(); DR.cache = null;
   try { localStorage.setItem('nmkp_draft', JSON.stringify(st)); } catch (e) {}
-  if (DR.db) DR.db.doc('keydesk/draft').set({order: st.order, picks: st.picks, updatedAt: st.updatedAt}).catch(() => {});
+  drPush();
 }
 function drConnect(){
   if (DR.dbTried) return; DR.dbTried = true;
-  (window.claude && claude.use ? claude.use('db') : Promise.resolve(null)).then(db => { if (!db) return; DR.db = db;
-    db.collection('keydesk').onSnapshot(snap => { const d = snap.docs.find(x => x.id === 'draft'); if (!d) return; const v = d.data();
-      if (!v || !Array.isArray(v.order) || (v.updatedAt || '') <= ((DR.st && DR.st.updatedAt) || '')) return;
-      DR.st = {order: v.order, picks: v.picks || [], updatedAt: v.updatedAt}; DR.cache = null;
+  (window.claude && claude.use ? claude.use('db') : Promise.resolve(null)).then(db => { if (!db) { DR.save = 'local'; drSaveNote(); return; } DR.db = db;
+    db.collection('keydesk').onSnapshot(snap => { const d = snap.docs.find(x => x.id === 'draft'), v = d && d.data(), loc = DR.st || drLoad();
+      if (snap.metadata && snap.metadata.fromCache) return;
+      if (!v || !Array.isArray(v.order) || (loc.updatedAt || '') > (v.updatedAt || '')) { if (loc.picks.length || loc.updatedAt) drPush(); else { DR.save = 'saved'; drSaveNote(); } return; }   // this device has a newer draft: send it up
+      if ((v.updatedAt || '') === (loc.updatedAt || '')) { DR.save = 'saved'; drSaveNote(); return; }
+      DR.st = {order: v.order, picks: v.picks || [], updatedAt: v.updatedAt}; DR.cache = null; DR.save = 'saved';
       try { localStorage.setItem('nmkp_draft', JSON.stringify(DR.st)); } catch (e) {}
-      if (SAFE_OK && state.sfMode === 'draft') render(); }, () => {});
-  }).catch(() => {});
+      if (SAFE_OK && state.sfMode === 'draft') render(); }, e => { DR.save = 'error:' + ((e && e.code) || 'no access'); drSaveNote(); });
+  }).catch(e => { DR.save = 'error:' + ((e && (e.code || e.message)) || 'no database'); drSaveNote(); });
+}
+function drMW(me, opps, SD){   // matchup win chance: more categories won than lost, averaged over opponents
+  let mw = 0; opps.forEach(o => { let dp = [1]; DR_CATS.forEach(c => { let z = (me[c] - o[c]) / (SD[c] * Math.SQRT2); if (c === 'GAA') z = -z; const p = tv2Phi(z), nd = new Array(dp.length + 1).fill(0); dp.forEach((v, k) => { nd[k] += v * (1 - p); nd[k + 1] += v * p; }); dp = nd; });
+    mw += dp.reduce((a, v, k) => a + (k > DR_CATS.length / 2 ? v : 0), 0) / opps.length; }); return mw;
+}
+const DR_LET = [[1.3, 'A+'], [0.8, 'A'], [0.45, 'A−'], [0.15, 'B+'], [-0.15, 'B'], [-0.45, 'B−'], [-0.8, 'C+'], [-1.2, 'C'], [-1.6, 'C−'], [-9, 'D']];
+const drLetCol = L => L[0] === 'A' ? '#1F8A4C' : L[0] === 'B' ? '#2E7DBA' : L[0] === 'C' ? '#C99A1E' : '#C8102E';
+function drGradesHTML(D, st){
+  const me = D.me, T = st.order, SD = drSD(), vecs = D.vecs, rows = T.map(t => { const opp = T.filter(u => u !== t).map(u => vecs[u]); return {t, ew: D.teamPc[t].ew, pc: D.teamPc[t].pc, mw: drMW(vecs[t], opp, SD)}; });
+  const m = rows.reduce((a, r) => a + r.ew, 0) / rows.length, sd = Math.sqrt(rows.reduce((a, r) => a + (r.ew - m) ** 2, 0) / rows.length) || 1;
+  rows.forEach(r => { r.z = (r.ew - m) / sd; r.L = DR_LET.find(([c]) => r.z >= c)[1]; }); rows.sort((a, b) => b.ew - a.ew);
+  const started = D.picks.length >= T.length;
+  const det = r => { const P = D.picks.filter(x => x.t === r.t && x.o), A = D.A[r.t], srt = DR_CATS.slice().sort((a, b) => r.pc[b] - r.pc[a]);
+    const steal = P.slice().sort((a, b) => (b.n - b.o.rk) - (a.n - a.o.rk))[0], reach = P.slice().sort((a, b) => (a.n - a.o.rk) - (b.n - b.o.rk))[0];
+    const gaps = Object.keys(DR_SLOTS).filter(p => A.open[p] > 0).map(p => `${A.open[p]} open ${p} spot${A.open[p] > 1 ? 's' : ''}`);
+    const win = DR_CATS.filter(c => r.pc[c] >= 0.55), lose = DR_CATS.filter(c => r.pc[c] <= 0.45);
+    const lines = [`<b>Strongest:</b> ${srt.slice(0, 3).map(c => `${c} ${Math.round(r.pc[c] * 100)}%`).join(', ')} · <b>Weakest:</b> ${srt.slice(-3).reverse().map(c => `${c} ${Math.round(r.pc[c] * 100)}%`).join(', ')}`];
+    if (steal && steal.n - steal.o.rk > 0) lines.push(`<b>Best value:</b> ${esc(steal.o.name)} at pick ${steal.n} (draft grade rank ${steal.o.rk})`);
+    if (reach && reach.n - reach.o.rk < 0) lines.push(`<b>Biggest reach:</b> ${esc(reach.o.name)} at pick ${reach.n} (draft grade rank ${reach.o.rk})`);
+    if (gaps.length) lines.push(`<b>Still to fill:</b> ${gaps.join(', ')}`);
+    if (A.bench.filter(o => o.kind === 'g').length + (DR_SLOTS.G - A.open.G) < 3 && P.length >= DR_ROUNDS) lines.push('<b>Thin in goal:</b> no third goalie for off nights or injuries');
+    if (r.t === me) lines.push(`<b>Your outlook:</b> ${win.length ? `you should win ${win.join(', ')} most weeks` : 'no category you win most weeks yet'}${lose.length ? `; expect to lose ${lose.join(', ')} more often than not` : ''}. ${lose.length ? `Waiver targets: players strong in ${srt.slice(-2).reverse().join(' and ')}.` : ''}`);
+    return `<details class="drd"${r.t === me ? ' open' : ''}><summary><span class="drlet" style="background:${drLetCol(r.L)}">${r.L}</span> ${esc(tc(r.t))}${r.t === me ? ' (you)' : ''} <span class="muted">· ${P.length} picks</span></summary>
+      <ul class="drgl">${lines.map(x => `<li>${x}</li>`).join('')}</ul>${P.length ? `<div class="drmine">${P.map(x => `<span>${esc(x.o.name)} <i>${drPos(x.o)} · #${x.n}</i></span>`).join('')}</div>` : ''}</details>`; };
+  return `<div class="card"><h2>🏅 Draft grades</h2><p class="muted" style="margin:-4px 0 8px;font-size:12.5px">${started ? 'Each team graded on its projected lineup (open spots filled with what is still expected) against the other ' + (T.length - 1) + ' teams: expected category wins per matchup of 11, and chance to win a matchup. Letters are relative to this league.' : 'Grades appear once every team has made a pick.'}</p>
+    ${started ? `<div class="tw"><table class="t" style="font-size:13px"><thead><tr><th>#</th><th class="l">TEAM</th><th>GRADE</th><th>CAT WINS</th><th>MATCHUP WIN</th></tr></thead><tbody>${rows.map((r, i) => `<tr${r.t === me ? ' class="hlme"' : ''}><td>${i + 1}</td><td class="l">${esc(tc(r.t))}</td><td><span class="drlet" style="background:${drLetCol(r.L)}">${r.L}</span></td><td>${r.ew.toFixed(2)}</td><td>${Math.round(r.mw * 100)}%</td></tr>`).join('')}</tbody></table></div>
+    <div style="margin-top:10px">${rows.map(det).join('')}</div>` : ''}</div>`;
 }
 const drSnake = (n, N) => { const r = Math.ceil(n / N), i = (n - 1) % N; return r % 2 ? i : N - 1 - i; };   // pick n (1-based) → spot index
 function drPool(){   // blended season projection per player: [G, A, +/-, PPP, SOG, HIT, BLK, W, GAA, SV, SHO]
@@ -2792,13 +2831,15 @@ function drAnalyze(){
   const repl = {}; Object.keys(DR_SLOTS).forEach(p => { const L = avail.filter(o => o.pos.includes(p)).map(zv).sort((a, b) => b - a); repl[p] = L.length ? L[Math.min(L.length - 1, Math.max(0, need[p]))] : 0; });
   const vor = o => Math.max(...o.pos.map(p => zv(o) - repl[p]));
   const nbV = {}; Object.keys(DR_SLOTS).forEach(p => { const L = cand.filter(o => o.pos.includes(p) && !likelyGone.has(o.k)); nbV[p] = L.length ? Math.max(...L.map(vor)) : 0; });
-  const val = new Map(); cand.forEach(o => { const v = vor(o), nb = Math.max(...o.pos.map(p => nbV[p] || 0)); val.set(o.k, (Math.max(0, v - nb) + 0.35 * Math.max(0, v)) * (o.kind === 'g' ? DR_GW : 1)); });
+  const val = new Map(); cand.forEach(o => { const v = vor(o), nb = Math.max(...o.pos.map(p => nbV[p] || 0)); val.set(o.k, (Math.max(0, v - nb) + 0.35 * Math.max(0, v)) * (o.kind === 'g' ? DR_GW : 1) * (o.pos.some(p => A[me].open[p] > 0) ? 1 : 0.3)); });   // a player for a position you have filled is bench depth
   const mxF = Math.max(1e-6, ...fit.values()), mxV = Math.max(1e-6, ...val.values()), nMine = roster[me].length, wFit = Math.min(0.8, 0.3 + 0.5 * nMine / DR_ROUNDS);   // early: player value leads; later: team fit leads
-  const score = new Map(); cand.forEach(o => score.set(o.k, (1 - wFit) * val.get(o.k) / mxV + wFit * fit.get(o.k) / mxF));
+  const openN = Object.values(A[me].open).reduce((a, b) => a + b, 0), left = DR_ROUNDS - nMine;   // starting spots still open vs picks you have left
+  const score = new Map(); cand.forEach(o => { const fills = o.pos.some(p => A[me].open[p] > 0), f = fills ? 1 : left <= openN ? 0 : 0.25;
+    score.set(o.k, ((1 - wFit) * val.get(o.k) / mxV + wFit * fit.get(o.k) / mxF) * f); });
   const recs = cand.slice().sort((a, b) => score.get(b.k) - score.get(a.k)).slice(0, 5);
   const openMe = A[me].open, tips = Object.keys(DR_SLOTS).filter(p => openMe[p] > 0).map(p => { const L = cand.filter(o => o.pos.includes(p)); const now = L.length ? Math.max(...L.map(o => gain.get(o.k))) : 0; return [p, now, nextBest[p] || 0, now - (nextBest[p] || 0)]; }).sort((a, b) => b[3] - a[3]);
   const teamPc = {}; st.order.forEach(t => teamPc[t] = drEW(vec[t], st.order.filter(u => u !== t).map(u => vec[u]), SD));
-  return DR.cache = {sig, P, N, total, me, picks, roster, A, avail, n, done, onClock, myNext, myAfter, likelyGone, gain, score, recs, fit, val, repl, tips, base, teamPc, R};
+  return DR.cache = {sig, P, N, total, me, picks, roster, A, vecs: vec, avail, n, done, onClock, myNext, myAfter, likelyGone, gain, score, recs, fit, val, repl, tips, base, teamPc, R};
 }
 const drShort = t => { const n = tc(t); return n.length > 16 ? n.replace(/^The /, '').split(' ').map((w, i) => i ? w[0] + '.' : w).join(' ') : n; };
 const drPos = o => o.kind === 'g' ? 'G' : o.pos.join('/');
@@ -2844,13 +2885,11 @@ function drPage(modeBtns){
     <div class="ctrls" style="margin-bottom:6px"><input type="search" id="drq" placeholder="Filter by name" value="${esc(DR.q)}" style="flex:1;min-width:160px">${seg('drsort', [['rec', 'Best for you'], ['grade', 'Draft grade']], state.drsort || 'rec')}</div>
     <div class="trpk-ch" id="drpos">${['All', 'C', 'LW', 'RW', 'D', 'G', 'Mine', 'Taken'].map(p => `<span class="trpk-c${p === DR.pos ? ' on' : ''}" data-drpos="${p}">${p}</span>`).join('')}</div>
     <div id="drrows">${drRowsHTML(D)}</div></div>`;
-  const lg = `<div class="card"><h2>🏒 League rosters</h2><p class="muted" style="margin:-4px 0 8px;font-size:12.5px">Each team's picks and where its projected lineup stands out (category win chance against the rest of the league).</p>
-    ${st.order.map(t => { const pc = D.teamPc[t].pc, srt = DR_CATS.slice().sort((a, b) => pc[b] - pc[a]), r = D.roster[t];
-      return `<details class="drd"><summary>${esc(tc(t))}${t === me ? ' (you)' : ''} <span class="muted">· ${r.length} picks · strong ${srt.slice(0, 2).join(', ')} · weak ${srt.slice(-2).join(', ')}</span></summary>${r.length ? `<div class="drmine">${r.map(o => `<span>${esc(o.name)} <i>${drPos(o)}</i></span>`).join('')}</div>` : '<p class="muted" style="margin:6px 0">No picks yet.</p>'}</details>`; }).join('')}</div>`;
+  const lg = drGradesHTML(D, st);
   const log = st.picks.length ? `<div class="card"><h2>🧾 Draft log</h2><div class="tw"><table class="t" style="font-size:13px"><thead><tr><th>PICK</th><th class="l">TEAM</th><th class="l">PLAYER</th><th></th></tr></thead><tbody>${D.picks.slice().reverse().map(x => `<tr${x.t === me ? ' class="hlme"' : ''}><td>${x.n} <span class="muted">(R${rnd(x.n)})</span></td><td class="l"><select data-drteam="${x.n}">${T.map(u => `<option value="${esc(u)}" ${u === x.t ? 'selected' : ''}>${esc(drShort(u))}</option>`).join('')}</select></td><td class="l">${x.o ? esc(x.o.name) + ` <span class="muted">${drPos(x.o)}</span>` : esc(x.k.split('|')[1] || x.k)}</td><td><button class="trx" data-drdel="${x.n}" aria-label="Remove pick">×</button></td></tr>`).join('')}</tbody></table></div>
     <p class="muted" style="font-size:12px;margin:6px 0 0">Change the team on a pick if it was traded or made out of turn. Removing a pick moves the later picks up one spot.</p></div>` : '';
   return phead('🔒 Safe · Draft board', 'Safe', 'Snake draft assistant: set the draft order, then record every pick as it happens. The advice adapts after each one.') +
-    `<div class="card"><div style="margin-bottom:12px">${modeBtns}</div>${orderHTML}${clock}${tools}</div>${recs}<div class="grid g2" style="gap:16px">${needs}${cats}</div>${board}${lg}${log}`;
+    `<div class="card"><div style="margin-bottom:12px">${modeBtns}</div>${orderHTML}${clock}${tools}<div id="drsave" style="font-size:12px;margin-top:8px">${drSaveHTML()}</div></div>${recs}<div class="grid g2" style="gap:16px">${needs}${cats}</div>${board}${lg}${log}`;
 }
 function drAfter(){
   const st = drLoad(), redraw = () => { DR.cache = null; render(); };
