@@ -2839,15 +2839,16 @@ function drAnalyze(){
   const repl = {}; Object.keys(DR_SLOTS).forEach(p => { const L = avail.filter(o => o.pos.includes(p)).map(zv).sort((a, b) => b - a); repl[p] = L.length ? L[Math.min(L.length - 1, Math.max(0, need[p]))] : 0; });
   const vor = o => Math.max(...o.pos.map(p => zv(o) - repl[p]));
   const nbV = {}; Object.keys(DR_SLOTS).forEach(p => { const L = cand.filter(o => o.pos.includes(p) && !likelyGone.has(o.k)); nbV[p] = L.length ? Math.max(...L.map(vor)) : 0; });
-  const val = new Map(); cand.forEach(o => { const v = vor(o), nb = Math.max(...o.pos.map(p => nbV[p] || 0)); val.set(o.k, (Math.max(0, v - nb) + 0.35 * Math.max(0, v)) * (o.kind === 'g' ? DR_GW : 1) * (o.pos.some(p => A[me].open[p] > 0) ? 1 : 0.3)); });   // a player for a position you have filled is bench depth
+  const DR_GT = 3, myG = roster[me].filter(o => o.kind === 'g').length, myOpen = Object.assign({}, A[me].open, {G: Math.max(A[me].open.G, DR_GT - myG)});   // The Scalawags carry 3 goalies
+  const val = new Map(); cand.forEach(o => { const v = vor(o), nb = Math.max(...o.pos.map(p => nbV[p] || 0)); val.set(o.k, (Math.max(0, v - nb) + 0.35 * Math.max(0, v)) * (o.kind === 'g' ? DR_GW : 1) * (o.pos.some(p => myOpen[p] > 0) ? 1 : 0.3)); });   // a player for a position you have filled is bench depth
   const mxF = Math.max(1e-6, ...fit.values()), mxV = Math.max(1e-6, ...val.values()), nMine = roster[me].length, wFit = Math.min(0.8, 0.3 + 0.5 * nMine / DR_ROUNDS);   // early: player value leads; later: team fit leads
-  const openN = Object.values(A[me].open).reduce((a, b) => a + b, 0), left = DR_ROUNDS - nMine;   // starting spots still open vs picks you have left
-  const score = new Map(); cand.forEach(o => { const fills = o.pos.some(p => A[me].open[p] > 0), f = fills ? 1 : left <= openN ? 0 : 0.25;
+  const openN = Object.values(myOpen).reduce((a, b) => a + b, 0), left = DR_ROUNDS - nMine;   // starting spots still open vs picks you have left
+  const score = new Map(); cand.forEach(o => { const fills = o.pos.some(p => myOpen[p] > 0), f = fills ? 1 : left <= openN ? 0 : 0.25;
     score.set(o.k, ((1 - wFit) * val.get(o.k) / mxV + wFit * fit.get(o.k) / mxF) * f); });
   const recs = cand.slice().sort((a, b) => score.get(b.k) - score.get(a.k)).slice(0, 5);
-  const openMe = A[me].open, tips = Object.keys(DR_SLOTS).filter(p => openMe[p] > 0).map(p => { const L = cand.filter(o => o.pos.includes(p)); const now = L.length ? Math.max(...L.map(o => gain.get(o.k))) : 0; return [p, now, nextBest[p] || 0, now - (nextBest[p] || 0)]; }).sort((a, b) => b[3] - a[3]);
+  const openMe = myOpen, tips = Object.keys(DR_SLOTS).filter(p => openMe[p] > 0).map(p => { const L = cand.filter(o => o.pos.includes(p)); const now = L.length ? Math.max(...L.map(o => gain.get(o.k))) : 0; return [p, now, nextBest[p] || 0, now - (nextBest[p] || 0)]; }).sort((a, b) => b[3] - a[3]);
   const teamPc = {}; st.order.forEach(t => teamPc[t] = drEW(vec[t], st.order.filter(u => u !== t).map(u => vec[u]), SD));
-  return DR.cache = {sig, P, N, total, me, picks, roster, A, vecs: vec, avail, n, done, onClock, myNext, myAfter, likelyGone, gain, score, recs, fit, val, repl, vor, tips, base, teamPc, R};
+  return DR.cache = {sig, P, N, total, me, picks, roster, A, myOpen, vecs: vec, avail, n, done, onClock, myNext, myAfter, likelyGone, gain, score, recs, fit, val, repl, vor, tips, base, teamPc, R};
 }
 const drShort = t => { const n = tc(t); return n.length > 16 ? n.replace(/^The /, '').split(' ').map((w, i) => i ? w[0] + '.' : w).join(' ') : n; };
 const drPos = o => o.kind === 'g' ? 'G' : o.pos.join('/');
@@ -2879,10 +2880,10 @@ function drPage(modeBtns){
       <div><span class="muted">Pick ${D.n} · round ${rnd(D.n)}</span><b>${esc(tc(D.onClock))}</b><span class="muted">on the clock</span></div>
       <div class="${myTurn ? 'on' : ''}"><span class="muted">${myTurn ? 'Your pick' : 'Your next pick'}</span><b>${myTurn ? 'Now' : D.myNext ? '#' + D.myNext : '–'}</b><span class="muted">${myTurn ? (D.myAfter ? 'then #' + D.myAfter : 'last pick') : away != null ? away + ' pick' + (away === 1 ? '' : 's') + ' away' : 'no picks left'}</span></div></div>`;
   const mock = DR.mode === 'mock', tools = `<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">${mock && !st.picks.length && D.onClock !== me ? `<button class="btn" id="drstart">▶ Start mock draft</button>` : ''}${st.picks.length ? `<button class="btn ghost" id="drundo">↩ ${mock ? 'Undo my last pick' : 'Undo last pick'}</button>` : ''}<button class="btn ghost" id="drreset" style="margin-left:auto">${DR.resetArm ? 'Tap again to clear the draft' : 'Reset draft'}</button></div>`;
-  const why = o => { const a = D.A[me], q = o.pos.filter(p => a.open[p] > 0); return q.length ? `fills ${q.join(' or ')}` : 'bench depth'; };
+  const why = o => { const q = o.pos.filter(p => D.myOpen[p] > 0); return q.length ? (q[0] === 'G' && !D.A[me].open.G ? 'your third goalie' : `fills ${q.join(' or ')}`) : 'bench depth'; };
   const recs = D.done ? '' : `<div class="card"><h2>${myTurn ? '🎯 Take one of these' : '🎯 Best for you right now'}</h2><p class="muted" style="margin:-4px 0 8px;font-size:12.5px">Ranked by player value (how rare his production is in the draft pool) and team fit (extra category wins per matchup against the other ${N - 1} teams), each measured as what you would lose by waiting until your next pick. Value leads early; fit counts more as your roster fills.${myTurn ? '' : ` Updated after every pick; your turn is ${away} pick${away === 1 ? '' : 's'} away.`}</p>
     ${D.recs.map((o, i) => `<div class="drrec"><span class="drk">${i + 1}</span><div class="drnm"><b data-${o.kind === 'g' ? 'gl' : 'pl'}="${o.x.p.id}">${esc(o.name)}</b> <span class="muted">${o.team} · ${drPos(o)}</span><div class="muted">${why(o)} · gain ${drG(D.gain.get(o.k))}${D.likelyGone.has(o.k) ? ' · <span class="neg">likely gone before your next pick</span>' : D.myNext && !myTurn ? ' · likely still there' : ''}</div></div><span class="trg" style="background:${gHue(o.bg)}">${o.bg.toFixed(1)}</span>${myTurn ? `<button class="btn drpk" data-drpick="${esc(o.k)}">Draft</button>` : ''}</div>`).join('') || '<p class="muted">No players left.</p>'}</div>`;
-  const A = D.A[me], need = Object.keys(DR_SLOTS).map(p => [p, DR_SLOTS[p] - A.open[p], DR_SLOTS[p]]).concat([['BN', Math.min(DR_BN, A.bench.length), DR_BN]]);
+  const A = D.A[me], nG = D.roster[me].filter(o => o.kind === 'g').length, need = Object.keys(DR_SLOTS).map(p => p === 'G' ? ['G', Math.min(3, nG), 3] : [p, DR_SLOTS[p] - A.open[p], DR_SLOTS[p]]).concat([['BN', Math.min(DR_BN, A.bench.length), DR_BN]]);
   const t0 = D.tips[0], tip = !t0 ? 'Starting spots are filled: take the best player left for the bench.' : t0[3] > 0.02 ? `Fill next: <b>${t0[0]}</b>. Best ${t0[0]} now is worth ${drG(t0[1])}; at your next pick probably only ${drG(t0[2])}.` : `No position is running out before your next pick: take the best player available.`;
   const mine = D.roster[me];
   const needs = `<div class="card"><h2>🧩 Your roster</h2><div class="drneed">${need.map(([p, f, n]) => `<div class="${f >= n ? 'ok' : ''}">${p}<b>${f}/${n}</b></div>`).join('')}</div><p style="margin:10px 0 0;font-size:13.5px">${tip}</p>
@@ -2918,7 +2919,8 @@ function drAutoPick(D, t){   // mock draft: the best player for team t — value
   let best = null, bs = -1e9;
   D.avail.slice(0, 160).forEach(o => { const fills = o.pos.some(p => A.open[p] > 0), f = fills ? 1 : left <= openN ? 0 : 0.3; if (!f) return;
     const zc = ZC.get(o.k) || [], need = DR_CATS.reduce((a, c, i) => a + (zc[i] || 0) * 2 * (0.5 - pc[c]), 0);
-    const sc = (D.vor(o) + need) * f * (o.kind === 'g' ? DR_GW + 0.1 : 1) * (0.94 + 0.12 * Math.random()); if (sc > bs) { bs = sc; best = o; } });
+    const nT = D.roster[t].length, wE = nT < 4 ? 0.8 : nT < 8 ? 0.5 : 0.25;   // early rounds: mostly the elite players; later: needs and fit
+    const sc = (wE * (o.bg - 50) / 15 + (1 - wE) * (D.vor(o) + need)) * f * (o.kind === 'g' ? DR_GW + 0.1 : 1) * (0.95 + 0.1 * Math.random()); if (sc > bs) { bs = sc; best = o; } });
   return best || D.avail[0];
 }
 function drMockRun(){   // let the other teams pick until it's your turn (or the draft ends)
