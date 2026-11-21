@@ -547,6 +547,20 @@ table.mx{border-collapse:separate;border-spacing:3px;font-size:12px;background:#
 .cmp .a{flex-direction:row-reverse}
 .cmp i{height:10px;border-radius:5px;display:block}
 .cmp .lbl{text-align:center;font-family:Oswald;font-size:11.5px;letter-spacing:.08em;color:var(--mute)}
+.trpk-add{width:100%;justify-content:center;font-weight:600}
+.trpk{margin-top:8px;background:#fff;border-radius:10px;box-shadow:0 0 0 1px var(--ice2),0 6px 18px rgba(0,0,0,.12);padding:10px 12px}
+.trpk-hd{display:flex;justify-content:space-between;align-items:center;font-size:14px;margin-bottom:6px}.trpk-n{font-size:12px}
+.trpk-q{width:100%;max-width:none!important;box-sizing:border-box}
+.trpk-ch{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 4px}.trpk-c{font-size:12px;padding:3px 11px;border-radius:999px;box-shadow:0 0 0 1px var(--ice2);cursor:pointer;color:var(--mute)}.trpk-c.on{background:var(--navy);color:#fff;box-shadow:none}
+.trpk-l{max-height:380px;overflow:auto;margin:0 -4px;padding:0 4px}
+.trpk-g{font:500 11px Oswald;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);margin:10px 0 2px}
+.trpk-r{display:flex;align-items:center;gap:10px;padding:7px 2px;border-bottom:1px solid var(--ice2);cursor:pointer;font-size:13.5px}.trpk-r:hover{background:var(--ice)}
+.trpk-r .muted{font-size:11.5px}.trpk-nm{flex:1;min-width:0}
+.trpk-ck{width:19px;height:19px;flex:none;border-radius:5px;box-shadow:inset 0 0 0 1.5px #9aa6b5;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700}
+.trpk-r.on .trpk-ck{background:var(--navy);box-shadow:none}.trpk-r.on{background:rgba(0,0,0,.025)}
+.trpk-st{font-size:10.5px;font-weight:700;color:var(--red);border:1px solid var(--red);border-radius:4px;padding:0 4px;margin-left:4px}
+.trpk-r .trg{font:500 12px Oswald;color:#fff;border-radius:5px;padding:2px 7px}
+.trpk-done{width:100%;margin-top:10px;justify-content:center}
 .ac{position:relative}
 .ac .list{position:absolute;top:100%;left:0;right:0;background:#fff;box-shadow:0 6px 18px rgba(0,0,0,.18);border-radius:6px;z-index:20;max-height:260px;overflow:auto}
 .ac .list div{padding:7px 10px;cursor:pointer;font-size:13px}
@@ -1801,7 +1815,7 @@ function trxWarn(give, get, drop, act, V, wireLike){   // injured incoming playe
 function trxHero(me, TRS, TRO, outV, inV, give, get, drop, act, s, xh, full){
   const V = TRS.v2;
   const mx = Math.max(outV, inV, 1), val = `<div class="trx-val"><div class="trx-vl"><span>Value out <b>${outV.toFixed(1)}</b></span><span>Value in <b>${inV.toFixed(1)}</b></span></div><div class="trx-vb"><i style="flex:${outV.toFixed(2)};background:var(--red)"></i><i style="flex:${inV.toFixed(2)};background:var(--blue)"></i></div></div>`;
-  const [myC, myH] = trxCats(V, 'me'), mine = (xh || []).concat(myH.map(h => h[1] === 'Costs' ? ['no', 'Costs you', h[2]] : h), trxWarn(give, get, drop, act, V, s.partner === 'WIRE'));
+  const [myC, myH] = trxCats(V, 'me'), mine = myH.map(h => h[1] === 'Costs' ? ['no', 'Costs you', h[2]] : h).concat(xh || [], trxWarn(give, get, drop, act, V, s.partner === 'WIRE'));
   if (full && TRO && TRO.v2) {   // Safe page: each team's full verdict, side by side
     const [ptC, ptH] = trxCats(TRO.v2, 'me'), pn = tc(s.partner), theirs = ptH.map(h => h[1] === 'Costs' ? ['no', `Costs ${esc(pn)}`, h[2]] : h).concat(trxWarn(get, give, [], [], TRO.v2, false));
     const col = (card, c, h) => `<div class="trx-col">${card}${c}${trxHL(h)}</div>`;
@@ -1830,7 +1844,7 @@ V.trade = () => {
       <button class="trx" data-trrm="${side}|${esc(x.k)}" aria-label="Remove">×</button></div>`; };
   const col = (side, label, list, color) => `<div class="card" style="border-top:4px solid ${color}"><h2>${label}</h2>
     <div class="ac"><input type="search" id="tr-${side}" placeholder="${side==='act' ? (s.team?`Tap to pick an player in an IR / IR+ spot from ${esc(tc(s.team))}…`:'Pick the team giving first…') : side==='give'||side==='drop' ? (s.team?`Tap to pick from ${esc(tc(s.team))}…`:'Add a skater or goalie…') : (wire?'Tap for top free agents, or type a name…':s.partner?`Tap to pick from ${esc(tc(s.partner))}…`:'Add a skater or goalie…')}" style="width:100%;max-width:none"><div class="list" id="tr-${side}l" hidden></div></div>
-    <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">${list.map(x=>card(x,side)).join('') || `<div class="muted" style="padding:10px 0">${side==='act'?'No activation. Add a player moving from an IR / IR+ spot back to the active roster.':side==='give'&&move?'Nobody yet. Add the player you would release to the waiver wire.':side==='drop'?'No drop. Add one if the trade leaves you over the roster limit.':side==='give'&&wire?'Nobody yet. Leave empty if you have an open roster spot, or add the player you would drop.':((side==='give'?s.team:(s.partner&&s.partner!=='WIRE'))?'No players yet. Tap the box above to pick from the roster.':'No players yet. Start typing a name above.')}</div>`}</div></div>`;
+    <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">${list.map(x=>card(x,side)).join('') || `<div class="muted" style="padding:10px 0">${side==='act'?'No activation. Add a player moving from an IR / IR+ spot back to the active roster.':side==='give'&&move?'Nobody yet. Add the player you would release to the waiver wire.':side==='drop'?'No drop. Add one if the trade leaves you over the roster limit.':side==='give'&&wire?'Nobody yet. Leave empty if you have an open roster spot, or add the player you would drop.':((side==='give'?s.team:(s.partner&&s.partner!=='WIRE'))?'No players yet. Tap “Add players” to pick from the roster.':'No players yet. Tap “Add players” to find one.')}</div>`}</div></div>`;
   const modeBtns = seg('trMode', [['trade','🤝 Trade'],['wire','🆓 Waiver wire pickup'],['drop','🗑️ Drop'],['move','🔁 Drop & activate']], mode);
   const teamOne = `${MYTEAM ? `<label class="lb">Your team <select id="trteam" disabled title="Locked to your team"><option value="${esc(MYTEAM)}" selected>${esc(tc(MYTEAM))} 🔒</option></select></label>` : `<label class="lb">Your team <select id="trteam"><option value="">— Pick a team —</option>${T.map(t=>`<option value="${esc(t)}" ${s.team===t?'selected':''}>${esc(tc(t))}</option>`).join('')}</select></label>`}`;
   const teamSel = mode!=='trade' ? teamOne : `${MYTEAM ? teamOne : `<label class="lb">Your team <select id="trteam"><option value="">— Any team —</option>${T.map(t=>`<option value="${esc(t)}" ${s.team===t?'selected':''}>${esc(tc(t))}</option>`).join('')}</select></label>`}
@@ -1913,24 +1927,49 @@ V.trade = () => {
   out += `<p class="muted">The recommendation is a guide based on the numbers on this site. It doesn't know injuries or news beyond what the site tracks, or your league's roster limits.</p>`;
   return out;
 };
+/* Player picker (Nov 21 2026): "Add players" button opens the roster grouped by position, with checkboxes, a name filter and position chips */
+const TRPK = {pos: {}};
+function trSheet(pfx, s, sides, allow){
+  const POS = ['C','LW','RW','D','G'], PN = {C:'Centers', LW:'Left wings', RW:'Right wings', D:'Defense', G:'Goalies'};
+  const posOf = x => x.kind === 'g' ? ['G'] : String(x.tag || '').split(/[\/,]/).map(t => t.trim().replace(/^W$/, 'LW')).filter(t => POS.includes(t));
+  let rowOf = null; const st = x => { if (!rowOf) { rowOf = new Map(); try { Object.keys(DATA.rosters.teams).forEach(t => rosterRows(t).forEach(r => { if (r.m) rowOf.set(r.m, r); })); } catch (e) {} }
+    const r = rowOf.get(x.p); return !r ? '' : (r.slot || '').startsWith('IR') ? r.slot : ['O','IR','IR-LT','IR+','DTD'].includes(r.st) ? r.st : ''; };
+  sides.forEach(side => { const inp = $('#' + pfx + side), lst = $('#' + pfx + side + 'l'); if (!inp) return; const ac = inp.parentNode;
+    const teamPick = side==='fa' ? false : side==='give'||side==='drop'||side==='act' ? !!s.team : (!!s.partner && s.partner!=='WIRE'), wirePick = (side==='get' && s.partner==='WIRE') || side==='fa';
+    const teamName = teamPick ? tc(side === 'get' ? s.partner : s.team) : null;
+    const label = side === 'act' ? (s.team ? `Add players from ${esc(teamName)}${/s$/i.test(teamName) ? '’' : '’s'} IR / IR+ spots` : 'Pick your team first') : teamPick ? `Add players from ${esc(teamName)}` : wirePick ? 'Add free agents' : 'Add players';
+    inp.style.display = 'none'; if (lst) lst.remove();
+    const key = pfx + side, open = TRPK.open === key;
+    ac.insertAdjacentHTML('beforeend', `<button class="btn ghost trpk-add" type="button">＋ ${label}</button><div class="trpk" ${open ? '' : 'hidden'}><div class="trpk-hd"><b>${teamPick ? esc(teamName) + (side === 'act' ? ' · IR / IR+' : ' roster') : wirePick ? 'Free agents' : 'All players'}</b><span class="muted trpk-n"></span></div>
+      <input type="search" class="trpk-q" placeholder="Filter by name"><div class="trpk-ch"></div><div class="trpk-l"></div><button class="btn trpk-done" type="button">Done</button></div>`);
+    const btn = ac.querySelector('.trpk-add'), sh = ac.querySelector('.trpk'), qi = sh.querySelector('.trpk-q'), L = sh.querySelector('.trpk-l'), CH = sh.querySelector('.trpk-ch'), N = sh.querySelector('.trpk-n');
+    if (side === 'act' && !s.team) btn.disabled = true;
+    const draw = () => { const q = nrm(qi.value.trim()), own = trOwners(), mine = new Set(s[side] || []), pos = TRPK.pos[key] || 'All';
+      const taken = new Set(['give','get','drop','act','fa'].filter(k => k !== side).flatMap(k => s[k] || []));
+      let m = trPool().filter(x => !taken.has(x.k) && (mine.has(x.k) || allow(x, side, own)) && (!q || nrm(x.name).includes(q)) && (pos === 'All' || posOf(x).includes(pos)));
+      m.sort((a, b) => b.grade - a.grade);
+      if (!teamPick) { const sel = m.filter(x => mine.has(x.k)), rest = m.filter(x => !mine.has(x.k)); m = sel.concat(rest.slice(0, q ? 40 : 25)); }
+      CH.innerHTML = ['All'].concat(POS).map(p => `<span class="trpk-c${p === pos ? ' on' : ''}" data-pos="${p}">${p}</span>`).join('');
+      const row = x => { const o = own.get(x.p), t = st(x), on = mine.has(x.k);
+        return `<div class="trpk-r${on ? ' on' : ''}" data-trk="${esc(x.k)}"><span class="trpk-ck">${on ? '✓' : ''}</span><div class="trpk-nm"><b>${esc(x.name)}</b>${t ? ` <span class="trpk-st">${esc(t)}</span>` : ''}<div class="muted">${x.team} · ${x.kind === 'g' ? 'G' : x.tag} · ${x.p.GP} GP${!teamPick && DATA.rosters ? ` · ${o ? esc(tc(o)) : 'free agent'}` : ''}</div></div><span class="trg" style="background:${gHue(x.grade)}">${x.grade.toFixed(1)}</span></div>`; };
+      let h = '';
+      if (teamPick) POS.forEach(g => { const G = m.filter(x => (posOf(x)[0] || (x.kind === 'g' ? 'G' : 'C')) === g); if (G.length) h += `<div class="trpk-g">${PN[g]}</div>` + G.map(row).join(''); });
+      else h = (wirePick && !q ? '<div class="trpk-g">Top free agents · type a name to search all</div>' : '') + m.map(row).join('');
+      const sy = L.scrollTop; L.innerHTML = h || `<div class="muted" style="padding:10px 2px">${!teamPick && !wirePick && !q ? 'Type a name to find a player.' : 'No match.'}</div>`;
+      L.scrollTop = sy; N.textContent = `${mine.size} selected`; };
+    btn.onclick = () => { const was = !sh.hidden; document.querySelectorAll('.trpk').forEach(x => { x.hidden = true; }); sh.hidden = was; TRPK.open = was ? null : key; if (!was) { draw(); } };
+    qi.oninput = draw;
+    CH.onclick = e => { const c = e.target.closest('[data-pos]'); if (!c) return; TRPK.pos[key] = c.dataset.pos; draw(); };
+    L.onclick = e => { const d = e.target.closest('[data-trk]'); if (!d) return; const k = d.dataset.trk, a = s[side] = s[side] || [], i = a.indexOf(k); if (i >= 0) a.splice(i, 1); else a.push(k); draw(); };
+    sh.querySelector('.trpk-done').onclick = () => { TRPK.open = null; render(); };
+    if (open) draw();
+  });
+}
 V.trade.after = () => {
   const s = state.tr; { const d = document.querySelector('.trx-extra'); if (d) d.ontoggle = () => { state.trxEx = d.open; }; }
   const inactive = new Set(s.team && DATA.rosters && DATA.rosters.teams[s.team] ? rosterRows(s.team).filter(r => r.m && r.slot.startsWith('IR')).map(r=>r.m) : []);
   const allow = (x, side, own) => side==='act' ? (own.get(x.p)===s.team && inactive.has(x.p)) : trAllowed(x, side==='drop'?'give':side, s, own);
-  ['give','get','drop','act'].forEach(side => { const inp = $('#tr-'+side), lst = $('#tr-'+side+'l'); if (!inp) return;
-    const teamPick = side==='give'||side==='drop'||side==='act' ? !!s.team : (!!s.partner && s.partner!=='WIRE'), wirePick = side==='get' && s.partner==='WIRE';
-    const show = () => { const q = inp.value.trim();
-      if (!teamPick && !wirePick && q.length < 2) { lst.hidden = true; return; }
-      const own = trOwners(), taken = new Set(s.give.concat(s.get, s.drop||[], s.act||[]));
-      let m = trPool().filter(x => (!q || nrm(x.name).includes(nrm(q))) && !taken.has(x.k) && allow(x, side, own));
-      if (teamPick) m.sort((a,b) => (a.kind===b.kind ? b.grade-a.grade : a.kind==='s' ? -1 : 1)); else { if (side==='fa') m.sort((a,b)=>b.grade-a.grade); m = m.slice(0, wirePick && !q ? 25 : 14); }
-      const hdr = teamPick ? `<div class="muted" style="cursor:default;font-size:11px;letter-spacing:.08em;background:var(--ice)">${esc(tc(side==='get'?s.partner:s.team).toUpperCase())} · ${m.length} PLAYER${m.length===1?'':'S'} AVAILABLE</div>` : wirePick && !q ? `<div class="muted" style="cursor:default;font-size:11px;letter-spacing:.08em;background:var(--ice)">TOP FREE AGENTS · TYPE TO SEARCH ALL</div>` : '';
-      lst.innerHTML = hdr + (m.map(x=>{ const o = own.get(x.p); return `<div data-trk="${esc(x.k)}"><b>${esc(x.name)}</b> <span class="muted">${x.team} · ${x.kind==='g'?'Goalie':x.tag}${DATA.rosters?` · ${o?esc(tc(o)):'free agent'}`:''}</span><span class="trg" style="background:${gHue(x.grade)}">${x.grade.toFixed(1)}</span></div>`; }).join('') || '<div class="muted">No match</div>'); lst.hidden = false; };
-    inp.oninput = show; inp.onfocus = show;
-    inp.onblur = () => setTimeout(() => { lst.hidden = true; }, 200);
-    lst.onmousedown = e => e.preventDefault();
-    lst.onclick = e => { const d = e.target.closest('[data-trk]'); if (!d) return; (s[side] = s[side] || []).push(d.dataset.trk); render(); setTimeout(()=>{ const el = $('#tr-'+side); if (el) el.focus(); }, 0); };
-  });
+  trSheet('tr-', s, ['give','get','drop','act'], allow);
   const prune = () => { const own = trOwners(), byK = {}; trPool().forEach(x=>byK[x.k]=x);
     ['give','get','drop','act'].forEach(sd => s[sd] = (s[sd]||[]).filter(k => byK[k] && (sd==='act' ? own.get(byK[k].p)===s.team : trAllowed(byK[k], sd==='drop'?'give':sd, s, own)) && !(sd==='drop' && (s.partner==='WIRE'||s.partner==='MOVE')) && !(sd==='get' && s.partner==='MOVE'))); };
   $('#trteam').onchange = e => { s.team = e.target.value; prune(); render(); };
@@ -2002,7 +2041,7 @@ V.safeTrade = () => {
       <button class="trx" data-sfrm="${side}|${esc(x.k)}" aria-label="Remove">×</button></div>`; };
   const col = (side, label, list, color) => `<div class="card" style="border-top:4px solid ${color}"><h2>${label}</h2>
     <div class="ac"><input type="search" id="sf-${side}" placeholder="${side==='fa' ? 'Tap for top free agents, or type a name…' : side==='act' ? (s.team?`Tap to pick an player in an IR / IR+ spot from ${esc(tc(s.team))}…`:'Pick the team giving first…') : side==='give'||side==='drop' ? (s.team?`Tap to pick from ${esc(tc(s.team))}…`:'Add a skater or goalie…') : (wire?'Tap for top free agents, or type a name…':s.partner?`Tap to pick from ${esc(tc(s.partner))}…`:'Add a skater or goalie…')}" style="width:100%;max-width:none"><div class="list" id="sf-${side}l" hidden></div></div>
-    <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">${list.map(x=>card(x,side)).join('') || `<div class="muted" style="padding:10px 0">${side==='fa'?'No pickup. Add any free agent to pick up with this move (if the trade leaves you with only 2 goalies, add a free-agent goalie here).':side==='act'?'No activation. Add a player moving from an IR / IR+ spot back to the active roster.':side==='give'&&move?'Nobody yet. Add the player you would release to the waiver wire.':side==='drop'?'No drop. Add one if the trade leaves you over the roster limit.':side==='give'&&wire?'Nobody yet. Leave empty if you have an open roster spot, or add the player you would drop.':((side==='give'?s.team:(s.partner&&s.partner!=='WIRE'))?'No players yet. Tap the box above to pick from the roster.':'No players yet. Start typing a name above.')}</div>`}</div></div>`;
+    <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">${list.map(x=>card(x,side)).join('') || `<div class="muted" style="padding:10px 0">${side==='fa'?'No pickup. Add any free agent to pick up with this move (if the trade leaves you with only 2 goalies, add a free-agent goalie here).':side==='act'?'No activation. Add a player moving from an IR / IR+ spot back to the active roster.':side==='give'&&move?'Nobody yet. Add the player you would release to the waiver wire.':side==='drop'?'No drop. Add one if the trade leaves you over the roster limit.':side==='give'&&wire?'Nobody yet. Leave empty if you have an open roster spot, or add the player you would drop.':((side==='give'?s.team:(s.partner&&s.partner!=='WIRE'))?'No players yet. Tap “Add players” to pick from the roster.':'No players yet. Tap “Add players” to find one.')}</div>`}</div></div>`;
   const modeBtns = seg('sfMode', [['trade','🤝 Trade'],['wire','🆓 Waiver wire pickup'],['drop','🗑️ Drop'],['move','🔁 Drop & activate'],['stream','📡 Streaming'],['sugg','🤝 Suggested trades'],['wpick','🆓 Waiver wire pickups']], mode);
   const teamOne = `<label class="lb">Your team <select id="sfteam"><option value="">— Pick a team —</option>${T.map(t=>`<option value="${esc(t)}" ${s.team===t?'selected':''}>${esc(tc(t))}</option>`).join('')}</select></label>`;
   const teamSel = mode!=='trade' ? teamOne : `<label class="lb">Your team <select id="sfteam"><option value="">— Any team —</option>${T.map(t=>`<option value="${esc(t)}" ${s.team===t?'selected':''}>${esc(tc(t))}</option>`).join('')}</select></label>
@@ -2109,20 +2148,7 @@ V.safeTrade.after = () => {
   const s = state.sf;
   const inactive = new Set(s.team && DATA.rosters && DATA.rosters.teams[s.team] ? rosterRows(s.team).filter(r => r.m && r.slot.startsWith('IR')).map(r=>r.m) : []);
   const allow = (x, side, own) => side==='fa' ? !own.get(x.p) : side==='act' ? (own.get(x.p)===s.team && inactive.has(x.p)) : trAllowed(x, side==='drop'?'give':side, s, own);
-  ['give','get','drop','act','fa'].forEach(side => { const inp = $('#sf-'+side), lst = $('#sf-'+side+'l'); if (!inp) return;
-    const teamPick = side==='give'||side==='drop'||side==='act' ? !!s.team : (!!s.partner && s.partner!=='WIRE'), wirePick = (side==='get' && s.partner==='WIRE') || side==='fa';
-    const show = () => { const q = inp.value.trim();
-      if (!teamPick && !wirePick && q.length < 2) { lst.hidden = true; return; }
-      const own = trOwners(), taken = new Set(s.give.concat(s.get, s.drop||[], s.act||[], s.fa||[]));
-      let m = trPool().filter(x => (!q || nrm(x.name).includes(nrm(q))) && !taken.has(x.k) && allow(x, side, own));
-      if (teamPick) m.sort((a,b) => (a.kind===b.kind ? b.grade-a.grade : a.kind==='s' ? -1 : 1)); else { if (side==='fa') m.sort((a,b)=>b.grade-a.grade); m = m.slice(0, wirePick && !q ? 25 : 14); }
-      const hdr = teamPick ? `<div class="muted" style="cursor:default;font-size:11px;letter-spacing:.08em;background:var(--ice)">${esc(tc(side==='get'?s.partner:s.team).toUpperCase())} · ${m.length} PLAYER${m.length===1?'':'S'} AVAILABLE</div>` : wirePick && !q ? `<div class="muted" style="cursor:default;font-size:11px;letter-spacing:.08em;background:var(--ice)">TOP FREE AGENTS · TYPE TO SEARCH ALL</div>` : '';
-      lst.innerHTML = hdr + (m.map(x=>{ const o = own.get(x.p); return `<div data-trk="${esc(x.k)}"><b>${esc(x.name)}</b> <span class="muted">${x.team} · ${x.kind==='g'?'Goalie':x.tag}${DATA.rosters?` · ${o?esc(tc(o)):'free agent'}`:''}</span><span class="trg" style="background:${gHue(x.grade)}">${x.grade.toFixed(1)}</span></div>`; }).join('') || '<div class="muted">No match</div>'); lst.hidden = false; };
-    inp.oninput = show; inp.onfocus = show;
-    inp.onblur = () => setTimeout(() => { lst.hidden = true; }, 200);
-    lst.onmousedown = e => e.preventDefault();
-    lst.onclick = e => { const d = e.target.closest('[data-trk]'); if (!d) return; (s[side] = s[side] || []).push(d.dataset.trk); render(); setTimeout(()=>{ const el = $('#sf-'+side); if (el) el.focus(); }, 0); };
-  });
+  trSheet('sf-', s, ['give','get','drop','act','fa'], allow);
   const prune = () => { const own = trOwners(), byK = {}; trPool().forEach(x=>byK[x.k]=x);
     ['give','get','drop','act','fa'].forEach(sd => s[sd] = (s[sd]||[]).filter(k => byK[k] && (sd==='fa' ? !own.get(byK[k].p) : sd==='act' ? own.get(byK[k].p)===s.team : trAllowed(byK[k], sd==='drop'?'give':sd, s, own)) && !(sd==='drop' && (s.partner==='WIRE'||s.partner==='MOVE')) && !(sd==='get' && s.partner==='MOVE'))); };
   $('#sfteam').onchange = e => { s.team = e.target.value; prune(); render(); };
