@@ -2670,6 +2670,7 @@ function sfFinderPart(part){   // Suggested trades / Waiver wire pickups tabs: o
    every other team's projected lineup (all-play), adjusted for who is likely gone before your next pick. */
 const DR_SLOTS = {C: 2, LW: 2, RW: 2, D: 4, G: 2}, DR_BN = 4, DR_ROUNDS = 16, DR_BENCH_W = 0.15, DR_WEEKS = 24;
 const DR_CATS = ['G', 'A', '+/-', 'PPP', 'SOG', 'HIT', 'BLK', 'W', 'GAA', 'SV', 'SHO'];
+const DR_REL = [0.75, 0.75, 0.3, 0.7, 0.85, 0.85, 0.85, 0.5, 0.3, 0.6, 0.3];   // how much of a player's edge carries over to next season, per category
 const DR = {st: null, db: null, dbTried: false, pos: 'All', q: '', sort: 'rec', resetArm: false, cache: null};
 const drTeams = () => (DATA.league && DATA.league.keys) || (DATA.rosters ? Object.keys(DATA.rosters.teams) : []);
 const drMe = () => { const T = drTeams(); return T.includes('THE SCALAWAGS') ? 'THE SCALAWAGS' : (state.sf && state.sf.team) || T[0]; };
@@ -2712,6 +2713,11 @@ function drPool(){   // blended season projection per player: [G, A, +/-, PPP, S
     const lg = hasL && p.lgrade != null ? p.lgrade : null, bg = (wc * x.grade + (lg != null ? wl * lg : 0)) / (wc + (lg != null ? wl : 0));
     out.push({k: x.k, x, name: x.name, team: x.team, kind: x.kind, pos, v, bg: Math.round(bg * 10) / 10, gp, hasL}); });
   out.sort((a, b) => b.bg - a.bg); out.forEach((o, i) => o.rk = i + 1);
+  // shrink each projection toward its group's average by how well the category repeats from season to season
+  const grp = o => o.kind === 'g' ? 'G' : o.pos.includes('D') && o.pos.length === 1 ? 'D' : 'F', top = {F: 110, D: 50, G: 30}, avg = {};
+  Object.keys(top).forEach(g => { const L = out.filter(o => grp(o) === g).slice(0, top[g]); if (!L.length) return; const v = new Array(11).fill(0); let gw = 0, gs = 0;
+    L.forEach(o => { for (let i = 0; i < 11; i++) if (i !== 8) v[i] += o.v[i] / L.length; if (o.v[8] != null) { gw += o.v[8] * o.v[9]; gs += o.v[9]; } }); v[8] = gs ? gw / gs : null; avg[g] = v; });
+  out.forEach(o => { const m = avg[grp(o)]; if (!m) return; o.raw = o.v; o.v = o.v.map((x, i) => x == null || m[i] == null ? x : m[i] + DR_REL[i] * (x - m[i])); });
   return DR.pool = {key, list: out, byK: new Map(out.map(o => [o.k, o]))};
 }
 function drSD(){
@@ -2765,7 +2771,7 @@ function drAnalyze(){
   const cand = avail.slice(0, 220), gain = new Map();
   cand.forEach(o => { const A2 = drAssign(roster[me].concat([o])), v2 = drVec(A2, R); gain.set(o.k, drEW(v2, opps, SD).ew - base.ew); });
   const nextBest = {}; Object.keys(DR_SLOTS).forEach(p => { const L = cand.filter(o => o.pos.includes(p) && !likelyGone.has(o.k)); nextBest[p] = L.length ? Math.max(...L.map(o => gain.get(o.k))) : 0; });
-  const score = new Map(); cand.forEach(o => { const g = gain.get(o.k), nb = Math.max(...o.pos.map(p => nextBest[p] || 0)); score.set(o.k, g + 0.5 * Math.max(0, g - nb)); });
+  const score = new Map(); cand.forEach(o => { const g = gain.get(o.k), nb = Math.max(...o.pos.map(p => nextBest[p] || 0)); score.set(o.k, Math.max(0, g - nb) + 0.35 * g); });   // value lost by waiting until your next pick, plus a share of the raw gain
   const recs = cand.slice().sort((a, b) => score.get(b.k) - score.get(a.k)).slice(0, 5);
   const openMe = A[me].open, tips = Object.keys(DR_SLOTS).filter(p => openMe[p] > 0).map(p => { const L = cand.filter(o => o.pos.includes(p)); const now = L.length ? Math.max(...L.map(o => gain.get(o.k))) : 0; return [p, now, nextBest[p] || 0, now - (nextBest[p] || 0)]; }).sort((a, b) => b[3] - a[3]);
   const teamPc = {}; st.order.forEach(t => teamPc[t] = drEW(vec[t], st.order.filter(u => u !== t).map(u => vec[u]), SD));
@@ -2802,7 +2808,7 @@ function drPage(modeBtns){
       <div class="${myTurn ? 'on' : ''}"><span class="muted">${myTurn ? 'Your pick' : 'Your next pick'}</span><b>${myTurn ? 'Now' : D.myNext ? '#' + D.myNext : '–'}</b><span class="muted">${myTurn ? (D.myAfter ? 'then #' + D.myAfter : 'last pick') : away != null ? away + ' pick' + (away === 1 ? '' : 's') + ' away' : 'no picks left'}</span></div></div>`;
   const tools = `<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">${st.picks.length ? `<button class="btn ghost" id="drundo">↩ Undo last pick</button>` : ''}<button class="btn ghost" id="drreset" style="margin-left:auto">${DR.resetArm ? 'Tap again to clear the draft' : 'Reset draft'}</button></div>`;
   const why = o => { const a = D.A[me], q = o.pos.filter(p => a.open[p] > 0); return q.length ? `fills ${q.join(' or ')}` : 'bench depth'; };
-  const recs = D.done ? '' : `<div class="card"><h2>${myTurn ? '🎯 Take one of these' : '🎯 Best for you right now'}</h2><p class="muted" style="margin:-4px 0 8px;font-size:12.5px">Gain = extra category wins per matchup for The Scalawags against the other ${N - 1} teams' projected lineups.${myTurn ? '' : ` Updated after every pick; your turn is ${away} pick${away === 1 ? '' : 's'} away.`}</p>
+  const recs = D.done ? '' : `<div class="card"><h2>${myTurn ? '🎯 Take one of these' : '🎯 Best for you right now'}</h2><p class="muted" style="margin:-4px 0 8px;font-size:12.5px">Ranked by what you would lose by waiting: gain now minus the best you can likely still get at that position at your next pick. Gain = extra category wins per matchup against the other ${N - 1} teams' projected lineups.${myTurn ? '' : ` Updated after every pick; your turn is ${away} pick${away === 1 ? '' : 's'} away.`}</p>
     ${D.recs.map((o, i) => `<div class="drrec"><span class="drk">${i + 1}</span><div class="drnm"><b data-${o.kind === 'g' ? 'gl' : 'pl'}="${o.x.p.id}">${esc(o.name)}</b> <span class="muted">${o.team} · ${drPos(o)}</span><div class="muted">${why(o)} · gain ${drG(D.gain.get(o.k))}${D.likelyGone.has(o.k) ? ' · <span class="neg">likely gone before your next pick</span>' : D.myNext && !myTurn ? ' · likely still there' : ''}</div></div><span class="trg" style="background:${gHue(o.bg)}">${o.bg.toFixed(1)}</span>${myTurn ? `<button class="btn drpk" data-drpick="${esc(o.k)}">Draft</button>` : ''}</div>`).join('') || '<p class="muted">No players left.</p>'}</div>`;
   const A = D.A[me], need = Object.keys(DR_SLOTS).map(p => [p, DR_SLOTS[p] - A.open[p], DR_SLOTS[p]]).concat([['BN', Math.min(DR_BN, A.bench.length), DR_BN]]);
   const t0 = D.tips[0], tip = !t0 ? 'Starting spots are filled: take the best player left for the bench.' : t0[3] > 0.02 ? `Fill next: <b>${t0[0]}</b>. Best ${t0[0]} now is worth ${drG(t0[1])}; at your next pick probably only ${drG(t0[2])}.` : `No position is running out before your next pick: take the best player available.`;
