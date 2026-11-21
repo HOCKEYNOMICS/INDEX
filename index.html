@@ -2843,7 +2843,8 @@ function drAnalyze(){
   const val = new Map(); cand.forEach(o => { const v = vor(o), nb = Math.max(...o.pos.map(p => nbV[p] || 0)); val.set(o.k, (Math.max(0, v - nb) + 0.35 * Math.max(0, v)) * (o.kind === 'g' ? DR_GW : 1) * (o.pos.some(p => myOpen[p] > 0) ? 1 : 0.3)); });   // a player for a position you have filled is bench depth
   const mxF = Math.max(1e-6, ...fit.values()), mxV = Math.max(1e-6, ...val.values()), nMine = roster[me].length, wFit = Math.min(0.8, 0.3 + 0.5 * nMine / DR_ROUNDS);   // early: player value leads; later: team fit leads
   const openN = Object.values(myOpen).reduce((a, b) => a + b, 0), left = DR_ROUNDS - nMine;   // starting spots still open vs picks you have left
-  const score = new Map(); cand.forEach(o => { const fills = o.pos.some(p => myOpen[p] > 0), f = fills ? 1 : left <= openN ? 0 : 0.25;
+  const benchSk = A[me].bench.filter(o => o.kind === 's').length;   // 4 bench spots: 3 skaters + the third goalie
+  const score = new Map(); cand.forEach(o => { const fills = o.pos.some(p => myOpen[p] > 0), f = fills ? 1 : left <= openN || (o.kind === 'g' ? myG >= DR_GT : benchSk >= DR_BN - 1) ? 0 : 0.25;
     score.set(o.k, ((1 - wFit) * val.get(o.k) / mxV + wFit * fit.get(o.k) / mxF) * f); });
   const recs = cand.slice().sort((a, b) => score.get(b.k) - score.get(a.k)).slice(0, 5);
   const openMe = myOpen, tips = Object.keys(DR_SLOTS).filter(p => openMe[p] > 0).map(p => { const L = cand.filter(o => o.pos.includes(p)); const now = L.length ? Math.max(...L.map(o => gain.get(o.k))) : 0; return [p, now, nextBest[p] || 0, now - (nextBest[p] || 0)]; }).sort((a, b) => b[3] - a[3]);
@@ -2886,7 +2887,7 @@ function drPage(modeBtns){
   const A = D.A[me], nG = D.roster[me].filter(o => o.kind === 'g').length, need = Object.keys(DR_SLOTS).map(p => p === 'G' ? ['G', Math.min(3, nG), 3] : [p, DR_SLOTS[p] - A.open[p], DR_SLOTS[p]]).concat([['BN', Math.min(DR_BN, A.bench.length), DR_BN]]);
   const t0 = D.tips[0], tip = !t0 ? 'Starting spots are filled: take the best player left for the bench.' : t0[3] > 0.02 ? `Fill next: <b>${t0[0]}</b>. Best ${t0[0]} now is worth ${drG(t0[1])}; at your next pick probably only ${drG(t0[2])}.` : `No position is running out before your next pick: take the best player available.`;
   const mine = D.roster[me];
-  const needs = `<div class="card"><h2>🧩 Your roster</h2><div class="drneed">${need.map(([p, f, n]) => `<div class="${f >= n ? 'ok' : ''}">${p}<b>${f}/${n}</b></div>`).join('')}</div><p style="margin:10px 0 0;font-size:13.5px">${tip}</p>
+  const needs = `<div class="card"><h2>🧩 Your roster</h2><div class="drneed">${need.map(([p, f, n]) => `<div class="${f >= n ? 'ok' : ''}">${p}<b>${f}/${n}</b></div>`).join('')}</div><p class="muted" style="font-size:12px;margin:8px 0 0">16 picks: 12 starters (2 C, 2 LW, 2 RW, 4 D, 2 G) and 4 bench spots, one of them your third goalie.</p><p style="margin:10px 0 0;font-size:13.5px">${tip}</p>
     ${mine.length ? `<div class="drmine">${mine.map(o => `<span>${esc(o.name)} <i>${drPos(o)}</i></span>`).join('')}</div>` : ''}</div>`;
   const pc = D.base.pc, cats = `<div class="card"><h2>📊 Your category win chance</h2><p class="muted" style="margin:-4px 0 8px;font-size:12.5px">Average over the other ${N - 1} teams as drafted so far (open spots filled with expected picks). Expected category wins per matchup: <b>${D.base.ew.toFixed(2)}</b> of ${DR_CATS.length}.</p>
     ${DR_CATS.map(c => { const v = pc[c], d = v - 0.5, w = Math.min(50, Math.abs(d) * 100); return `<div class="drbar"><span>${c}</span><div><i style="left:${d >= 0 ? 50 : 50 - w}%;width:${w}%;background:${d >= 0 ? 'var(--green,#1d6b4a)' : 'var(--red)'}"></i></div><b>${Math.round(v * 100)}%</b></div>`; }).join('')}</div>`;
