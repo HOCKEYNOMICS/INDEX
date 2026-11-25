@@ -1,0 +1,29 @@
+{
+ "name": "Hockeynomics \u00b7 No More Kids Play",
+ "short_name": "Hockeynomics",
+ "description": "No More Kids Play fantasy hockey hub: standings, forecasts, matchups, grades and P.A.M player grades.",
+ "start_url": "./",
+ "scope": "./",
+ "display": "standalone",
+ "orientation": "any",
+ "background_color": "#07111F",
+ "theme_color": "#0B1A2E",
+ "icons": [
+  {
+   "src": "icon-192.png",
+   "sizes": "192x192",
+   "type": "image/png"
+  },
+  {
+   "src": "icon-512.png",
+   "sizes": "512x512",
+   "type": "image/png"
+  },
+  {
+   "src": "maskable-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "maskable"
+  }
+ ]
+}
