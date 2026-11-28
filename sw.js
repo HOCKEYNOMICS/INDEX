@@ -1,5 +1,5 @@
-// Hockeynomics app helper · site version 7f41c45585 · 2026-11-28
-const CACHE = 'hockeynomics-7f41c45585';
+// Hockeynomics app helper · site version 3f4d8429d0 · 2026-11-28
+const CACHE = 'hockeynomics-3f4d8429d0';
 const FILES = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png', './icon-180.png'];
 self.addEventListener('install', e => { self.skipWaiting(); e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).catch(() => {})); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(k => Promise.all(k.filter(x => x !== CACHE).map(x => caches.delete(x)))).then(() => self.clients.claim())); });
